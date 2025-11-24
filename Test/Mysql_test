@@ -1,0 +1,92 @@
+-- 视频素材库
+CREATE TABLE IF NOT EXISTS video (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    external_id VARCHAR(64),
+    title VARCHAR(255) NOT NULL,
+    category VARCHAR(50),
+    poster_url TEXT NOT NULL,
+    view_count BIGINT DEFAULT 0,
+    metadata JSONB DEFAULT '{}',
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_video_category ON video(category);
+CREATE INDEX IF NOT EXISTS idx_video_status ON video(status);
+
+-- 落地页模板库
+CREATE TABLE IF NOT EXISTS template (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    thumbnail_url TEXT,
+    html_file_path TEXT NOT NULL,
+    max_videos INT NOT NULL,
+    static_assets_path TEXT,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 工作流/批次实例
+CREATE TABLE IF NOT EXISTS workflow (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name VARCHAR(200) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    created_by VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_workflow_creator ON workflow(created_by);
+CREATE INDEX IF NOT EXISTS idx_workflow_status ON workflow(status);
+
+-- 落地页实例
+CREATE TABLE IF NOT EXISTS landing_page (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    workflow_id BIGINT NOT NULL REFERENCES workflow(id) ON DELETE CASCADE,
+    template_id BIGINT NOT NULL REFERENCES template(id),
+    selected_video_ids BIGINT[] NOT NULL,
+    generated_page_url TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(workflow_id, template_id)
+);
+CREATE INDEX IF NOT EXISTS idx_landing_page_workflow ON landing_page(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_landing_page_template ON landing_page(template_id);
+
+-- 广告素材库
+CREATE TABLE IF NOT EXISTS ad_creative (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    workflow_id BIGINT NOT NULL REFERENCES workflow(id) ON DELETE CASCADE,
+    file_url TEXT NOT NULL,
+    file_name VARCHAR(255),
+    dimensions VARCHAR(20),
+    file_size INT,
+    author VARCHAR(100) NOT NULL,
+    upload_batch VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ad_workflow ON ad_creative(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_ad_batch ON ad_creative(upload_batch);
+
+-- 投放计划
+CREATE TABLE IF NOT EXISTS campaign (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    name VARCHAR(200) NOT NULL,
+    channels TEXT[] NOT NULL,
+    regions TEXT[] NOT NULL,
+    launch_time TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'active',
+    created_by VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    config JSONB DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_creator ON campaign(created_by);
+
+-- 投放计划关联批次
+CREATE TABLE IF NOT EXISTS campaign_workflow_map (
+    campaign_id BIGINT NOT NULL REFERENCES campaign(id) ON DELETE CASCADE,
+    workflow_id BIGINT NOT NULL REFERENCES workflow(id) ON DELETE CASCADE,
+    PRIMARY KEY (campaign_id, workflow_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cwm_campaign ON campaign_workflow_map(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_cwm_workflow ON campaign_workflow_map(workflow_id);
