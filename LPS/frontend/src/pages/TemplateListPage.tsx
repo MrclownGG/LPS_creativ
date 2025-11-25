@@ -20,8 +20,10 @@ import {
   createTemplate,
   updateTemplate,
   deleteTemplate,
+  previewTemplate,
   type TemplateInput,
 } from '../api/templates'
+import { apiClient } from '../api/client'
 
 const { Option } = Select
 
@@ -35,6 +37,8 @@ export const TemplateListPage: React.FC = () => {
   )
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
+  const [previewVisible, setPreviewVisible] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   const [form] = Form.useForm()
 
@@ -90,13 +94,26 @@ export const TemplateListPage: React.FC = () => {
     },
   })
 
+  const previewMutation = useMutation({
+    mutationFn: (id: number) => previewTemplate(id),
+    onSuccess: (url) => {
+      setPreviewUrl(url)
+      setPreviewVisible(true)
+    },
+    onError: (error: unknown) => {
+      const msg =
+        error instanceof Error ? error.message : '模板预览失败，请稍后重试'
+      message.error(msg)
+    },
+  })
+
   const handleCreate = () => {
     setEditingTemplate(null)
     form.resetFields()
     // 默认填入我们复制的 home 模板路径，方便第一次使用
     form.setFieldsValue({
       html_file_path: 'LPS/templates/home/index.html',
-      static_assets_path: 'LPS/templates/home',
+      static_assets_path: 'home',
       max_videos: 3,
       status: 'active',
     })
@@ -115,6 +132,10 @@ export const TemplateListPage: React.FC = () => {
       status: record.status,
     })
     setIsModalOpen(true)
+  }
+
+  const handlePreview = (record: Template) => {
+    previewMutation.mutate(record.id)
   }
 
   const handleModalCancel = () => {
@@ -172,14 +193,22 @@ export const TemplateListPage: React.FC = () => {
     {
       title: '操作',
       dataIndex: 'actions',
-      width: 180,
+      width: 220,
       render: (_, record) => (
         <>
           <Button
             type="link"
             size="small"
-            onClick={() => handleEdit(record)}
+            onClick={() => handlePreview(record)}
             style={{ paddingLeft: 0 }}
+            disabled={previewMutation.isPending}
+          >
+            预览
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => handleEdit(record)}
           >
             编辑
           </Button>
@@ -202,6 +231,9 @@ export const TemplateListPage: React.FC = () => {
 
   const modalTitle = editingTemplate ? '编辑模板信息' : '新建模板'
   const isSubmitting = createMutation.isPending || updateMutation.isPending
+
+  const backendBaseUrl =
+    apiClient.defaults.baseURL?.replace(/\/api\/?$/, '') ?? ''
 
   return (
     <Card>
@@ -292,7 +324,7 @@ export const TemplateListPage: React.FC = () => {
             <InputNumber style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item label="静态资源路径" name="static_assets_path">
-            <Input placeholder="例如：LPS/templates/home，可留空" />
+            <Input placeholder="例如：home，可留空（默认相对于 /templates 根目录）" />
           </Form.Item>
           <Form.Item label="状态" name="status">
             <Select>
@@ -301,6 +333,40 @@ export const TemplateListPage: React.FC = () => {
             </Select>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="模板预览"
+        open={previewVisible}
+        onCancel={() => {
+          setPreviewVisible(false)
+          setPreviewUrl(null)
+        }}
+        footer={null}
+        width={480}
+        style={{ top: 40 }}
+        destroyOnClose
+      >
+        {previewUrl && (
+          <div
+            style={{
+              margin: '0 auto',
+              width: 430,
+              height: 800,
+              maxWidth: '100%',
+              maxHeight: '80vh',
+              borderRadius: 12,
+              border: '1px solid #ddd',
+              overflow: 'hidden',
+              boxShadow: '0 0 0 8px #f0f0f0',
+            }}
+          >
+            <iframe
+              src={`${backendBaseUrl}${previewUrl}`}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          </div>
+        )}
       </Modal>
     </Card>
   )

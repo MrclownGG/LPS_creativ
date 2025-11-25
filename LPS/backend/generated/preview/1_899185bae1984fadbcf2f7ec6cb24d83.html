@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/templates/home/favicon.ico" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="expires" content="0" />
+  <script>
+    !(function (f, b, e, v, n, t, s) {
+      if (f.fbq) return;
+      n = f.fbq = function () {
+        n.callMethod
+          ? n.callMethod.apply(n, arguments)
+          : n.queue.push(arguments);
+      };
+      if (!f._fbq) f._fbq = n;
+      n.push = n;
+      n.loaded = !0;
+      n.version = "2.0";
+      n.queue = [];
+      t = b.createElement(e);
+      t.async = !0;
+      t.src = v;
+      s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s);
+    })(
+      window,
+      document,
+      "script",
+      "https://connect.facebook.net/en_US/fbevents.js"
+    );
+  </script>
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+
+    .nav-box {
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      right: 0;
+      padding: 0.2rem 0.4rem;
+      display: flex;
+      align-items: center;
+      background-image: url("./images/header-bg.png");
+      background-size: 100% 100%;
+    }
+
+    .nav-box .nav-logo-img {
+      width: 1.2rem;
+      height: 1.2rem;
+      margin-right: 0.2rem;
+    }
+
+    .nav-info {
+      flex: 1;
+    }
+
+    .nav-box .nav-info .logo-text {
+      color: #fff;
+      font-size: 0.45rem;
+      line-height: 1;
+      margin-bottom: 0.1rem;
+    }
+
+    .nav-box .nav-info span {
+      font-size: 0.35rem;
+      line-height: 1;
+      color: #fff;
+      display: block;
+    }
+
+    .nav-box .nav-btn {
+      background: #f93a44;
+      border-radius: 0.13rem;
+      font-size: 0.3rem;
+      text-align: center;
+      color: #fff;
+      font-weight: 700;
+      padding: 0.2rem 0.4rem;
+    }
+
+    .swiper-container {
+      width: 100%;
+      height: 5.5rem;
+      position: relative;
+    }
+
+
+    .swiper-wrapper,
+    .swiper-slide,
+    .swiper-slide img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .swiper-container .custom-pagination {
+      position: absolute;
+      z-index: 9;
+      left: 0;
+      right: 0;
+      bottom: 0.2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .swiper-pagination-box {
+      position: absolute;
+      z-index: 9;
+      left: 0;
+      right: 0;
+      bottom: 0.2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .swiper-pagination-box .swiper-pagination {
+      position: unset;
+      width: auto !important;
+      border-radius: 0.2rem;
+      padding: 0.08rem 0.25rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .swiper-pagination-box .swiper-pagination-bullet {
+      width: 0.13rem;
+      height: 0.13rem;
+      background: #fff;
+      transition: 0.2s;
+      margin: 0 0 0 0.15rem !important;
+      border-radius: 50%;
+    }
+    .swiper-pagination-box .swiper-pagination-bullet:first-child {
+      margin-left: 0 !important;
+    }
+
+    .swiper-pagination-box .swiper-pagination-bullet-active {
+      width: 0.2rem;
+      border-radius: 0.5rem;
+      background-color: #f93a44;
+    }
+
+    .app-box {
+      min-height: 100dvh;
+      min-height: 100vh;
+      padding-top: 1.6rem;
+      padding-bottom: 2.2rem;
+      box-sizing: border-box;
+      background-color: #030d19;
+    }
+
+    .app-top-bg {
+      background-image: url("./images/bg-1.jpg");
+      background-size: 100% 100%;
+      height: 0.6rem;
+    }
+
+    .app-top-bg2 {
+      background-image: url("./images/bg-2.jpg");
+      background-size: 100% 100%;
+      height: 0.6rem;
+    }
+
+    .app-bg {
+      background-image: url("./images/bg.png");
+      background-repeat: no-repeat;
+      background-size: 100%;
+      background-position: top left;
+    }
+
+    .list-title {
+      padding: 0.4rem 0;
+      text-align: center;
+      font-size: 0.5rem;
+      color: white;
+      -webkit-text-stroke: 0.12rem rgba(0, 0, 0, 0);
+      background: -webkit-linear-gradient(0,
+          #d76e3a 0%,
+          #7e1b15 50%,
+          #d76e3a 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+
+    .list-box {
+      display: flex;
+      flex-wrap: wrap;
+      padding-left: 0.4rem;
+      padding-right: 0.15rem;
+    }
+
+    .list-box .list-item {
+      width: calc(100% / 3);
+      padding: 0 0.25rem 0.25rem 0;
+      box-sizing: border-box;
+    }
+
+    .list-box .list-item-img {
+      width: 100%;
+      height: 4rem;
+      border-radius: 0.15rem;
+      display: block;
+    }
+
+    .app-down-btn-box {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(3, 13, 25, 0.75);
+      padding: 0.3rem 0.6rem;
+    }
+
+    .app-down-btn-box .app-down-btn {
+      background-color: #f93a44;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.28rem;
+      height: 1.38rem;
+    }
+
+    .app-down-btn-box .app-down-btn-text {
+      font-size: 0.45rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .app-down-btn-box .app-down-btn-img {
+      width: 0.45rem;
+      height: 0.45rem;
+      margin-left: 0.3rem;
+    }
+  </style>
+  <script>
+    var remTimer = null;
+    function setRem() {
+      // 获取屏幕宽度
+      var screenWidth =
+        window.innerWidth ||
+        document.documentElement.clientWidth ||
+        document.body.clientWidth;
+      if (screenWidth > 750) {
+        screenWidth = 750; // 因为按最大的宽度来做不需要超出750
+      }
+      // 计算根元素字体大小
+      var baseFontSize = screenWidth / 10; // 假设 1rem 对应屏幕宽度的 1/10
+      // 设置根元素字体大小
+      document.documentElement.style.fontSize = baseFontSize + "px";
+    }
+
+    function onWindowSize() {
+      if (remTimer !== null) {
+        clearTimeout(remTimer);
+        remTimer = null;
+      }
+      remTimer = setTimeout(() => {
+        setRem();
+        remTimer = null;
+      }, 0);
+    }
+    onWindowSize();
+    window.addEventListener("resize", onWindowSize);
+  </script>
+  <link rel="stylesheet" href="/templates/home/css/swiper-bundle.min.css" />
+  <script src="/templates/home/js/swiper-bundle.min.js"></script>
+
+  <title>STCine</title>
+</head>
+
+<body>
+  <header class="nav-box" @click="downApk()">
+    <img src="/templates/home/images/logo.png" alt="LOGO" class="nav-logo-img" />
+    <div class="nav-info">
+      <h2 class="logo-text">STCine</h2>
+      <span>免费网站</span>
+    </div>
+    <div class="nav-btn">下载</div>
+  </header>
+  <div class="app-box" @click="downApk()">
+    <div class="app-top-bg"></div>
+
+    <div class="swiper-container mySwiper">
+      <div class="swiper-wrapper">
+        <div class="swiper-slide">
+          <img src="/templates/home/images/banner1.jpg" alt="" srcset="">
+        </div>
+        <div class="swiper-slide">
+          <img src="/templates/home/images/banner2.jpg" alt="" srcset="">
+        </div>
+        <div class="swiper-slide">
+          <img src="/templates/home/images/banner3.jpg" alt="" srcset="">
+        </div>
+      </div>
+      <div class="swiper-pagination-box">
+        <div class="swiper-pagination"></div>
+      </div>
+    </div>
+
+    <div class="app-top-bg2"></div>
+    <div class="app-bg">
+      <div class="list-title">更多精彩影片进APP搜索</div>
+      <div class="list-box">
+        <div class="list-item">
+          <img src="/templates/home/images/img1.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/templates/home/images/img2.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/templates/home/images/img3.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/templates/home/images/img4.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/templates/home/images/img5.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/templates/home/images/img6.webp" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/templates/home/images/img7.webp" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/templates/home/images/img8.png" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/templates/home/images/img9.jpg" class="list-item-img" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="app-down-btn-box">
+    <div class="app-down-btn">
+      <span class="app-down-btn-text">下载</span>
+      <img src="/templates/home/images/down-icon.png" class="app-down-btn-img" />
+    </div>
+  </div>
+
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KDJL4WVP" height="0" width="0"
+      style="display: none; visibility: hidden"></iframe>
+  </noscript>
+
+  <script>
+    // var bannerIndex = 0;
+    // var customPaginationBox = document.getElementById("custom-pagination-bg");
+    var swiper = new Swiper(".mySwiper", {
+      observer: true,
+      observeParents: true,
+      loop: true,
+      pagination: {
+        el: '.swiper-pagination',
+      },
+      // on: {
+      //   slideChangeTransitionStart: function () {
+      //     for (
+      //       var index = 0;
+      //       index < customPaginationBox.children.length;
+      //       index++
+      //     ) {
+      //       customPaginationBox.children[index].className =
+      //         bannerIndex === this.activeIndex ? "active" : "";
+      //     }
+      //   },
+      // },
+    });
+  </script>
+
+<script id="lps-selected-videos" type="application/json">[9]</script>
+</body>
+
+</html>

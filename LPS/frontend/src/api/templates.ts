@@ -106,3 +106,16 @@ export const deleteTemplate = async (id: number): Promise<void> => {
   }
 }
 
+export const previewTemplate = async (id: number): Promise<string> => {
+  const res = await apiClient.post<{
+    code: number
+    message: string
+    data?: { preview_url: string }
+  }>(`/templates/${id}/preview`)
+
+  if (res.data.code !== 0 || !res.data.data?.preview_url) {
+    throw new Error(res.data.message || '模板预览失败')
+  }
+
+  return res.data.data.preview_url
+}

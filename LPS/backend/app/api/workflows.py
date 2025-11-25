@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import LandingPage, Template, Workflow
+from app.db.models import LandingPage, Template, Workflow, Video
 from app.db.session import get_db
 
 router = APIRouter(tags=["workflows"])
@@ -34,6 +34,40 @@ def _get_generated_root() -> Path:
 def _get_templates_root() -> Path:
   """模板静态资源根目录 LPS_creativ/LPS/templates"""
   return _get_backend_root().parent / "templates"
+
+
+def _build_selected_videos_payload(
+  db: Session,
+  selected_ids: List[int],
+) -> List[dict]:
+  """
+  根据选中的视频 ID 列表，按顺序构建用于模板渲染的简要视频信息列表。
+  目前仅包含 id / poster_url / title 三个字段。
+  """
+  if not selected_ids:
+    return []
+
+  videos: List[Video] = (
+      db.execute(select(Video).where(Video.id.in_(selected_ids)))
+      .scalars()
+      .all()
+  )
+  video_map = {v.id: v for v in videos}
+
+  payload: List[dict] = []
+  for vid in selected_ids:
+    v = video_map.get(vid)
+    if not v:
+      continue
+    payload.append(
+        {
+            "id": v.id,
+            "poster_url": v.poster_url,
+            "title": v.title,
+        }
+    )
+
+  return payload
 
 
 class LandingPageItem(BaseModel):
