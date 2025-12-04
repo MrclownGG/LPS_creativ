@@ -41,6 +41,7 @@ export const WorkflowDetailPage: React.FC = () => {
   const backendBaseUrl =
     apiClient.defaults.baseURL?.replace(/\/api\/?$/, '') ||
     window.location.origin
+  const apiBaseUrl = apiClient.defaults.baseURL ?? ''
 
   const {
     data,
@@ -244,15 +245,17 @@ export const WorkflowDetailPage: React.FC = () => {
               )}
             </div>
             {record.package_url && (
-              <a
+              <Button
+                type="primary"
+                size="small"
                 href={`${backendBaseUrl}${record.package_url}`}
                 target="_blank"
                 rel="noreferrer"
                 download
-                style={{ alignSelf: 'flex-start', fontSize: 12 }}
+                style={{ alignSelf: 'flex-start' }}
               >
                 下载落地页包
-              </a>
+              </Button>
             )}
             {previewUrl ? (
               <div
@@ -318,6 +321,12 @@ export const WorkflowDetailPage: React.FC = () => {
     }
   }
 
+  const handleDownloadAdImages = () => {
+    if (!Number.isFinite(workflowId)) return
+    const url = `${apiBaseUrl.replace(/\/$/, '')}/workflows/${workflowId}/ad-images/download`
+    window.open(url, '_blank')
+  }
+
   if (error) {
     return (
       <Alert
@@ -375,6 +384,14 @@ export const WorkflowDetailPage: React.FC = () => {
               loading={uploading}
             >
               上传广告图
+            </Button>
+            <Button
+              type="primary"
+              style={{ marginLeft: 12 }}
+              onClick={handleDownloadAdImages}
+              disabled={!Number.isFinite(workflowId)}
+            >
+              下载广告图包
             </Button>
             <input
               type="file"

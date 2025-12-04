@@ -53,6 +53,7 @@ export interface ChannelTokenData {
   channel_id: number
   channel_code: string
   token: string
+  external_channel_id?: string | null
 }
 
 interface ChannelTokenResponse {

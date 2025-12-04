@@ -658,6 +658,11 @@ export const WorkflowGeneratePage: React.FC = () => {
                   渠道名称：<Text>{selectedChannel.name}</Text>
                 </Paragraph>
               )}
+              {tokenInfo.external_channel_id && (
+                <Paragraph style={{ marginBottom: 4 }}>
+                  渠道 c_id：<Text>{tokenInfo.external_channel_id}</Text>
+                </Paragraph>
+              )}
               <Paragraph style={{ marginBottom: 4 }}>
                 渠道编码：<Text>{tokenInfo.channel_code}</Text>
               </Paragraph>

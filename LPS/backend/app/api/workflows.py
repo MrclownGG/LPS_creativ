@@ -6,13 +6,16 @@ import json
 import mimetypes
 import re
 import shutil
+import zipfile
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 from urllib.parse import urlparse
 
 import httpx
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -1414,6 +1417,64 @@ async def upload_workflow_ad_image(
       file_name=ad_image.file_name,
   )
   return WorkflowAdImageUploadResponse(code=0, message="ok", data=data)
+
+
+@router.get(
+  "/workflows/{workflow_id}/ad-images/download",
+  summary="打包下载工作流广告图",
+  description="将指定工作流已上传的广告图打包为 zip 返回",
+)
+def download_workflow_ad_images(
+  workflow_id: int,
+  db: Session = Depends(get_db),
+):
+  workflow: Optional[Workflow] = db.get(Workflow, workflow_id)
+  if not workflow:
+    raise HTTPException(status_code=404, detail=f"workflow {workflow_id} not found")
+
+  ad_images: List[AdImageLibrary] = (
+      db.execute(
+          select(AdImageLibrary)
+          .join(
+              WorkflowAdMap,
+              WorkflowAdMap.ad_image_id == AdImageLibrary.id,
+          )
+          .where(WorkflowAdMap.workflow_id == workflow_id)
+      )
+      .scalars()
+      .all()
+  )
+
+  if not ad_images:
+    raise HTTPException(status_code=404, detail="no ad images for this workflow")
+
+  ad_dir = _get_ad_images_dir(workflow_id)
+  if not ad_dir.exists():
+    raise HTTPException(status_code=404, detail="ad images directory not found")
+
+  buffer = BytesIO()
+  added = 0
+  with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    for img in ad_images:
+      parsed = urlparse(img.file_url or "")
+      filename = Path(parsed.path).name
+      if not filename:
+        continue
+      file_path = ad_dir / filename
+      if not file_path.is_file():
+        continue
+      arcname = img.file_name or file_path.name
+      archive.write(file_path, arcname)
+      added += 1
+
+  if added == 0:
+    raise HTTPException(status_code=404, detail="ad image files not found")
+
+  buffer.seek(0)
+  headers = {
+      "Content-Disposition": f'attachment; filename="workflow_{workflow_id}_ad_images.zip"'
+  }
+  return StreamingResponse(buffer, media_type="application/zip", headers=headers)
 @router.post(
   "/workflows/{workflow_id}/archive",
   response_model=SimpleResponse,

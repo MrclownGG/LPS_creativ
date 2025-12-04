@@ -118,7 +118,7 @@ def _sync_channels_from_external(
 def _fetch_channel_token_from_external(
     channel_identifier: str,
     settings: Settings,
-) -> Tuple[bool, str, str | None, Optional[int]]:
+) -> Tuple[bool, str, str | None, Optional[int], Optional[str]]:
     """
     调用外部接口获取指定渠道对应的 token。
 
@@ -165,6 +165,7 @@ def _fetch_channel_token_from_external(
     data_field = payload.get("data")
     token: Optional[str] = None
     remote_code: Optional[int] = None
+    external_channel_id: Optional[str] = None
     code_raw = payload.get("code")
     try:
         remote_code = int(code_raw)
@@ -172,6 +173,11 @@ def _fetch_channel_token_from_external(
         remote_code = None
 
     if isinstance(data_field, dict):
+        external_channel_id = (
+            data_field.get("c_id")
+            or data_field.get("channel_id")
+            or data_field.get("channel_code")
+        )
         token = (
             data_field.get("c_token")
             or data_field.get("token")
@@ -180,6 +186,11 @@ def _fetch_channel_token_from_external(
     elif isinstance(data_field, list) and data_field:
         first = data_field[0]
         if isinstance(first, dict):
+            external_channel_id = (
+                first.get("c_id")
+                or first.get("channel_id")
+                or first.get("channel_code")
+            )
             token = (
                 first.get("c_token")
                 or first.get("token")
@@ -196,7 +207,7 @@ def _fetch_channel_token_from_external(
     if not token:
         return False, "外部渠道 token 接口未返回 token 字段", None, remote_code
 
-    return True, "ok", token, remote_code
+    return True, "ok", token, remote_code, external_channel_id
 
 
 @router.get(
@@ -320,7 +331,7 @@ def fetch_channel_token(
         )
 
     identifier = str(channel.id)
-    ok, msg, token, remote_code = _fetch_channel_token_from_external(
+    ok, msg, token, remote_code, external_channel_id = _fetch_channel_token_from_external(
         identifier, settings
     )
     if not ok or not token:
@@ -337,5 +348,6 @@ def fetch_channel_token(
             channel_id=channel_id,
             channel_code=identifier,
             token=token,
+            external_channel_id=external_channel_id,
         ),
     )
