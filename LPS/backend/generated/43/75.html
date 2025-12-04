@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/templates/home/favicon.ico" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="expires" content="0" />
+
+  <script>
+    var webStartTime = new Date().getTime();
+    console.log("WEB START TIME", webStartTime);
+  </script>
+
+  <script>
+    !(function (f, b, e, v, n, t, s) {
+      if (f.fbq) return;
+      n = f.fbq = function () {
+        n.callMethod
+          ? n.callMethod.apply(n, arguments)
+          : n.queue.push(arguments);
+      };
+      if (!f._fbq) f._fbq = n;
+      n.push = n;
+      n.loaded = !0;
+      n.version = "2.0";
+      n.queue = [];
+      t = b.createElement(e);
+      t.async = !0;
+      t.src = v;
+      s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s);
+    })(
+      window,
+      document,
+      "script",
+      "https://connect.facebook.net/en_US/fbevents.js"
+    );
+  </script>
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+
+    .nav-box {
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      right: 0;
+      padding: 0.2rem 0.4rem;
+      display: flex;
+      align-items: center;
+      background-image: url("/templates/home/images/header-bg.png");
+      background-size: 100% 100%;
+    }
+
+    .nav-box .nav-logo-img {
+      width: 1.2rem;
+      height: 1.2rem;
+      margin-right: 0.2rem;
+    }
+
+    .nav-info {
+      flex: 1;
+    }
+
+    .nav-box .nav-info .logo-text {
+      color: #fff;
+      font-size: 0.45rem;
+      line-height: 1;
+      margin-bottom: 0.1rem;
+    }
+
+    .nav-box .nav-info span {
+      font-size: 0.35rem;
+      line-height: 1;
+      color: #fff;
+      display: block;
+    }
+
+    .nav-box .nav-btn {
+      background: #f93a44;
+      border-radius: 0.13rem;
+      font-size: 0.3rem;
+      text-align: center;
+      color: #fff;
+      font-weight: 700;
+      padding: 0.2rem 0.4rem;
+    }
+
+    .swiper-container {
+      width: 100%;
+      overflow: hidden;
+      height: 5.5rem;
+      position: relative;
+    }
+
+    .swiper-wrapper,
+    .swiper-slide,
+    .swiper-slide img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .swiper-container .custom-pagination {
+      position: absolute;
+      z-index: 9;
+      left: 0;
+      right: 0;
+      bottom: 0.2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .swiper-pagination-box {
+      position: absolute;
+      z-index: 9;
+      left: 0;
+      right: 0;
+      bottom: 0.2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .swiper-pagination-box .swiper-pagination {
+      position: unset;
+      width: auto !important;
+      border-radius: 0.2rem;
+      padding: 0.08rem 0.25rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .swiper-pagination-box .swiper-pagination-bullet {
+      width: 0.13rem;
+      height: 0.13rem;
+      background: #fff;
+      transition: 0.2s;
+      margin: 0 0 0 0.15rem !important;
+      border-radius: 50%;
+    }
+
+    .swiper-pagination-box .swiper-pagination-bullet:first-child {
+      margin-left: 0 !important;
+    }
+
+    .swiper-pagination-box .swiper-pagination-bullet-active {
+      width: 0.2rem;
+      border-radius: 0.5rem;
+      background-color: #f93a44;
+    }
+
+    .app-box {
+      min-height: 100dvh;
+      min-height: 100vh;
+      padding-top: 1.6rem;
+      padding-bottom: 2.2rem;
+      box-sizing: border-box;
+      background-color: #030d19;
+    }
+
+    .app-top-bg {
+      background-image: url("/templates/home/images/bg-1.jpg");
+      background-size: 100% 100%;
+      height: 0.6rem;
+    }
+
+    .app-top-bg2 {
+      background-image: url("/templates/home/images/bg-2.jpg");
+      background-size: 100% 100%;
+      height: 0.6rem;
+    }
+
+    .app-bg {
+      background-image: url("/templates/home/images/bg.png");
+      background-repeat: no-repeat;
+      background-size: 100%;
+      background-position: top left;
+    }
+
+    .list-title {
+      padding: 0.4rem 0;
+      text-align: center;
+      font-size: 0.5rem;
+      color: white;
+      -webkit-text-stroke: 0.12rem rgba(0, 0, 0, 0);
+      background: -webkit-linear-gradient(0,
+          #d76e3a 0%,
+          #7e1b15 50%,
+          #d76e3a 100%);
+      -webkit-background-clip: text;
+    }
+
+    .list-box {
+      display: flex;
+      flex-wrap: wrap;
+      padding-left: 0.4rem;
+      padding-right: 0.15rem;
+    }
+
+    .list-box .list-item {
+      width: calc(100% / 3);
+      padding: 0 0.25rem 0.25rem 0;
+      box-sizing: border-box;
+    }
+
+    .list-box .list-item-img {
+      width: 100%;
+      height: 4rem;
+      border-radius: 0.15rem;
+      display: block;
+    }
+
+    .app-down-btn-box {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(3, 13, 25, 0.75);
+      padding: 0.3rem 0.6rem;
+    }
+
+    .app-down-btn-box .app-down-btn {
+      background-color: #f93a44;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.28rem;
+      height: 1.38rem;
+    }
+
+    .app-down-btn-box .app-down-btn-text {
+      font-size: 0.45rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .app-down-btn-box .app-down-btn-img {
+      width: 0.45rem;
+      height: 0.45rem;
+      margin-left: 0.3rem;
+    }
+  </style>
+
+  <style>
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    .modal-content {
+      background: #0a0a0c;
+      padding: 0.8rem 0.5rem;
+      border-radius: 0.3rem;
+      width: 9rem;
+      display: none;
+      transform: scale(0.8);
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-content-show {
+      display: block;
+    }
+
+    .modal-title {
+      font-size: 0.5rem;
+      color: #fff;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .modal-span {
+      font-size: 0.4rem;
+      color: #ececec;
+      margin-top: 0.3rem;
+    }
+
+    .modal-progress-title {
+      color: #f93a44;
+      font-size: 0.8rem;
+      text-align: center;
+      font-weight: bold;
+      margin: 0.5rem 0;
+    }
+
+    .modal-progress-box {
+      position: relative;
+      width: 100%;
+      height: 0.4rem;
+      border-radius: 0.5rem;
+      background-color: #fff;
+      overflow: hidden;
+    }
+
+    .modal-progress-info {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      background-image: linear-gradient(90deg, #fd626a 0%, #f93a44 100%);
+    }
+
+    .modal-file-size {
+      color: #999;
+      text-align: right;
+      font-size: 0.4rem;
+      margin-top: 0.3rem;
+    }
+
+    .modal-file-btn,
+    .modal-file-btn1 {
+      border-radius: 1rem;
+      color: #000;
+      font-weight: 700;
+      background-color: #ccc;
+      font-size: 0.6rem;
+      text-align: center;
+      line-height: 1.7rem;
+      margin-top: 0.5rem;
+    }
+
+    .modal-file-btn {
+      color: #fff;
+      background-color: #f93a44;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.3); }
+        to { opacity: 1; transform: scale(0.8); }
+    }
+  </style>
+
+  <script>
+    var API_URL = "https://api.good-videos.link";
+
+    var channel = "3";
+    var defaultDownload =
+      "https://landing.good-videos.net/downloads/android/STCine_C7_2025092401.apk";
+
+    var apkNum = "";
+    var isDownloadLoading = 0;
+    var googleInfo = {
+      sendTo: "",
+      gtagId: "",
+    };
+        var facebookInfo = {
+      id: "749727007662636",
+      token:
+        "EAAZA7dvV1szABPEsQO4uGFXtiTtoRFZBLaTPg2bZCFDI7r2KbMUsZBHZBt1QLlgkvo9kwcMyX9JipQF6mzlz83fJjsE6kNuvNaZCamuxHNmqLv5h35kJvFcRdgMqyrL2xQAKEcc6CRZAZCylisJYYp3jON8pBgxglfi0C37zavjflYMRBSX4UAV3tPaCnLiZC3FkAswZDZD",
+    };
+    var appData = null;
+  </script>
+
+  <script src="/templates/home/js/common.js"></script>
+  <script src="/templates/home/js/index.js"></script>
+  <link rel="stylesheet" href="/templates/home/css/swiper-bundle.min.css" />
+  <script src="/templates/home/js/swiper-bundle.min.js"></script>
+  <title>STCine</title>
+</head>
+<!-- {
+  "channel": 24,
+  "apkNum": "",
+  "isDownloadLoading": 0,
+  "defaultDownload": "https://landing.good-videos.net/downloads/android/STCine_C7_2025092401.apk",
+  "facebookInfo": {
+    "id": "1828426297802116",
+    "token": "EAAeZBva9MqaUBPzlFAqkvJ1aW3oDB2XTEyREHEmSrZBfl0mKTMiq0hT22GZCXToBFY8HzQ7PIiDEoL24NPZB36QpKnCvZCDM74jo1i2Frl9UALnDBrkWZCKKltxWXSbr2b1rgoHZBmuRZCncNso01ZCDveM76ZAOWEc3qxFZCC9ypOZASD7WVkHD4V4ZCLHogdxrBDQte8wZDZD"
+  },
+  "googleInfo": {
+    "sendTo": "",
+    "gtagId": ""
+  },
+  "banner": ["", "", ""],
+  "list": [{"img": ""}, {"img": ""}, {"img": ""}],
+  "moreVideoSearchApp": "更多精彩影片进APP搜索",
+  "nav": {
+    "title": "STCine",
+    "titleSpan": "免费网站",
+    "downText": "下载"
+  },
+  "downPopupInfo": {
+    "downTitle": "下载中...",
+    "downSpan": "下载中，稍等片刻！安装后，海量影视内容等你来看~",
+    "complete": "完成",
+    "cancel": "取消"
+  }
+} -->
+
+<body>
+  <header class="nav-box" onclick="downApk()">
+    <img src="/templates/home/images/logo.png" alt="LOGO" class="nav-logo-img" />
+    <div class="nav-info">
+      <h2 class="logo-text">STCine</h2>
+      <span>免费网站</span>
+    </div>
+    <div class="nav-btn">下载</div>
+  </header>
+  <div class="app-box" onclick="downApk()">
+    <div class="app-top-bg"></div>
+
+    <div class="swiper-container mySwiper">
+      <div class="swiper-wrapper">
+        <div class="swiper-slide">
+          <img src="/templates/home/images/banner1.jpg" alt="" srcset="" />
+        </div>
+        <div class="swiper-slide">
+          <img src="/templates/home/images/banner2.jpg" alt="" srcset="" />
+        </div>
+        <div class="swiper-slide">
+          <img src="/templates/home/images/banner3.jpg" alt="" srcset="" />
+        </div>
+      </div>
+      <div class="swiper-pagination-box">
+        <div class="swiper-pagination"></div>
+      </div>
+    </div>
+
+    <div class="app-top-bg2"></div>
+    <div class="app-bg">
+      <div class="list-title">更多精彩影片进APP搜索</div>
+      <div class="list-box">
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_1.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_2.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_3.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_4.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_5.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_6.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_7.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_8.jpg" class="list-item-img" />
+        </div>
+        <div class="list-item">
+          <img src="/generated/43/75_posters/poster_9.jpg" class="list-item-img" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="app-down-btn-box" onclick="downApk()">
+    <div class="app-down-btn">
+      <span class="app-down-btn-text">下载</span>
+      <img src="/templates/home/images/down-icon.png" class="app-down-btn-img" />
+    </div>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay" style="display: none">
+    <div id="modal-content" class="modal-content">
+      <div class="modal-title">下载中...</div>
+      <div id="modal-progress-title" class="modal-progress-title">0%</div>
+      <div class="modal-progress-box">
+        <div id="modal-progress-info" class="modal-progress-info" style="width: 0%"></div>
+      </div>
+      <div id="modal-file-size" class="modal-file-size">0KB / 0KB</div>
+      <div class="modal-span">
+        下载中，稍等片刻！安装后，海量影视内容等你来看~
+      </div>
+      <div id="modal-file-btn" class="modal-file-btn" style="display: none" onclick="onClosePopup()">
+        完成
+      </div>
+      <div id="modal-file-btn1" class="modal-file-btn1" onclick="onCancelPopup()">取消</div>
+    </div>
+  </div>
+
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KDJL4WVP" height="0" width="0"
+      style="display: none; visibility: hidden"></iframe>
+  </noscript>
+
+  <script src="/templates/home/js/crypto-js.min.js"></script>
+  <script src="/templates/home/js/down.js"></script>
+  <script>
+    window.onload = function () {
+      onLoadWebData();
+      loadGoogleGtag();
+      loadFbq();
+      onInitLoad();
+    };
+
+    // var bannerIndex = 0;
+    // var customPaginationBox = document.getElementById("custom-pagination-bg");
+    var swiper = new Swiper(".mySwiper", {
+      observer: true,
+      observeParents: true,
+      loop: true,
+      pagination: {
+        el: ".swiper-pagination",
+      },
+      // on: {
+      //   slideChangeTransitionStart: function () {
+      //     for (
+      //       var index = 0;
+      //       index < customPaginationBox.children.length;
+      //       index++
+      //     ) {
+      //       customPaginationBox.children[index].className =
+      //         bannerIndex === this.activeIndex ? "active" : "";
+      //     }
+      //   },
+      // },
+    });
+  </script>
+<script id="lps-selected-videos" type="application/json">[38, 53, 50, 30, 18, 17, 11, 10, 9]</script>
+<script id="lps-selected-videos-detail" type="application/json">[{"id": 38, "poster_url": "/generated/43/75_posters/poster_1.jpg", "title": "我的新朋友是个危险人物"}, {"id": 53, "poster_url": "/generated/43/75_posters/poster_2.jpg", "title": "全面回忆"}, {"id": 50, "poster_url": "/generated/43/75_posters/poster_3.jpg", "title": "陌生的事情"}, {"id": 30, "poster_url": "/generated/43/75_posters/poster_4.jpg", "title": "铁血战士"}, {"id": 18, "poster_url": "/generated/43/75_posters/poster_5.jpg", "title": "叛逆大天使"}, {"id": 17, "poster_url": "/generated/43/75_posters/poster_6.jpg", "title": "龙珠超级"}, {"id": 11, "poster_url": "/generated/43/75_posters/poster_7.jpg", "title": "火影忍者疾风传"}, {"id": 10, "poster_url": "/generated/43/75_posters/poster_8.jpg", "title": "游戏主宰者"}, {"id": 9, "poster_url": "/generated/43/75_posters/poster_9.jpg", "title": "叛逆大天使"}]</script>
+</body>
+
+</html>

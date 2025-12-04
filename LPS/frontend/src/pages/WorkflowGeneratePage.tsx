@@ -16,7 +16,7 @@ import {
   DatePicker,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
 
 import { useVideos, type Video } from '../api/videos'
@@ -29,7 +29,12 @@ import {
   type ChannelTokenData,
 } from '../api/channels'
 import { apiClient } from '../api/client'
-import { generateWorkflow, previewWorkflow } from '../api/workflows'
+import {
+  generateWorkflow,
+  previewWorkflow,
+  type WorkflowGenerateInput,
+  type WorkflowPreviewInput,
+} from '../api/workflows'
 
 const { Title, Paragraph, Text } = Typography
 const { Search } = Input
@@ -38,12 +43,29 @@ const { RangePicker } = DatePicker
 
 export const WorkflowGeneratePage: React.FC = () => {
   const { modal } = App.useApp()
+  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const params = useParams<{ workflowId: string }>()
   const workflowId = Number(params.workflowId)
 
+  const {
+    data: channelData,
+    isLoading: channelsLoading,
+    isFetching: channelsFetching,
+  } = useChannels()
+  const channels = useMemo<Channel[]>(
+    () => channelData?.items ?? [],
+    [channelData],
+  )
+
   const [selectedVideoIds, setSelectedVideoIds] = useState<number[]>([])
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<number[]>([])
+  const [selectedChannelId, setSelectedChannelId] = useState<number>()
+  const [tokenInfo, setTokenInfo] = useState<ChannelTokenData | null>(null)
+  const [tokenAlert, setTokenAlert] = useState<{
+    status: 'success' | 'error'
+    message: string
+  } | null>(null)
 
   const [previewVisible, setPreviewVisible] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -55,6 +77,11 @@ export const WorkflowGeneratePage: React.FC = () => {
   )
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [viewSort, setViewSort] = useState<'none' | 'asc' | 'desc'>('none')
+  const selectedChannel = useMemo(
+    () => channels.find((c) => c.id === selectedChannelId),
+    [channels, selectedChannelId],
+  )
+  const isChannelListLoading = channelsLoading || channelsFetching
 
   const {
     data: videoData,
@@ -73,17 +100,49 @@ export const WorkflowGeneratePage: React.FC = () => {
     page_size: 100,
   })
 
-  const allVideos = videoData?.items ?? []
+  const allVideos = useMemo<Video[]>(() => videoData?.items ?? [], [videoData])
 
   const backendBaseUrl =
     apiClient.defaults.baseURL?.replace(/\/api\/?$/, '') ?? ''
 
+  const syncChannelsMutation = useMutation({
+    mutationFn: syncChannels,
+    onSuccess: () => {
+      message.success('渠道同步完成')
+      queryClient.invalidateQueries({ queryKey: ['channels'] })
+    },
+    onError: (error: unknown) => {
+      const msg =
+        error instanceof Error ? error.message : '同步渠道失败，请稍后重试'
+      message.error(msg)
+    },
+  })
+
+  const channelTokenMutation = useMutation({
+    mutationFn: (channelId: number) => fetchChannelToken(channelId),
+    onSuccess: (data) => {
+      setTokenInfo(data)
+      setTokenAlert({
+        status: 'success',
+        message: `已获取渠道 ${data.channel_code} 的 token`,
+      })
+      message.success('渠道 token 获取成功')
+    },
+    onError: (error: unknown) => {
+      const msg =
+        error instanceof Error ? error.message : '当前渠道的 token 不存在'
+      setTokenInfo(null)
+      setTokenAlert({
+        status: 'error',
+        message: msg,
+      })
+      message.error(msg)
+    },
+  })
+
   const createMutation = useMutation({
-    mutationFn: () =>
-      generateWorkflow(workflowId, {
-        video_ids: selectedVideoIds,
-        template_ids: selectedTemplateIds,
-      }),
+    mutationFn: (payload: WorkflowGenerateInput) =>
+      generateWorkflow(workflowId, payload),
     onSuccess: () => {
       message.success('落地页生成成功（状态已进入：广告待上传）')
       navigate('/workflows')
@@ -99,11 +158,7 @@ export const WorkflowGeneratePage: React.FC = () => {
   })
 
   const previewMutation = useMutation({
-    mutationFn: (templateId: number) =>
-      previewWorkflow({
-        video_ids: selectedVideoIds,
-        template_id: templateId,
-      }),
+    mutationFn: (payload: WorkflowPreviewInput) => previewWorkflow(payload),
     onSuccess: (url) => {
       setPreviewUrl(url)
       setPreviewVisible(true)
@@ -131,7 +186,8 @@ export const WorkflowGeneratePage: React.FC = () => {
   const canGenerate =
     workflowId > 0 &&
     selectedVideoIds.length > 0 &&
-    selectedTemplateIds.length > 0
+    selectedTemplateIds.length > 0 &&
+    !!selectedChannelId
 
   // 分类选项（从当前视频的 category 去重）
   const categoryOptions = useMemo(() => {
@@ -185,6 +241,19 @@ export const WorkflowGeneratePage: React.FC = () => {
     })
   }, [allVideos, keyword, categoryFilter, dateRange])
 
+  const sortedVideos = useMemo(() => {
+    if (viewSort === 'none') {
+      return filteredVideos
+    }
+    const sorted = [...filteredVideos]
+    sorted.sort((a, b) =>
+      viewSort === 'asc'
+        ? a.view_count - b.view_count
+        : b.view_count - a.view_count,
+    )
+    return sorted
+  }, [filteredVideos, viewSort])
+
   // 切换选中状态：先选的卡片排在前面（决定模板中图片位置）
   const toggleSelectVideo = (id: number) => {
     setSelectedVideoIds((prev) =>
@@ -194,10 +263,14 @@ export const WorkflowGeneratePage: React.FC = () => {
 
   // 本地校验：检查选择的视频数量是否满足所选模板的 max_videos 要求
   const validateSelection = (): boolean => {
-    if (!canGenerate) {
+    if (
+      workflowId <= 0 ||
+      selectedVideoIds.length === 0 ||
+      selectedTemplateIds.length === 0
+    ) {
       modal.warning({
         title: '无法生成落地页',
-        content: '请至少选择 1 个视频和 1 个模板',
+        content: '请至少选择 1 个视频、1 个模板，并选择渠道',
       })
       return false
     }
@@ -223,7 +296,15 @@ export const WorkflowGeneratePage: React.FC = () => {
     if (selectedVideoIds.length < maxRequired) {
       modal.error({
         title: '无法生成落地页',
-        content: `当前选中的模板中，最大需要 ${maxRequired} 个视频，你只选了 ${selectedVideoIds.length} 个，请多选一些视频后再生成。`,
+        content: `当前选中的模板中，最多需要 ${maxRequired} 个视频，你只选了 ${selectedVideoIds.length} 个，请多选一些视频后再生成。`,
+      })
+      return false
+    }
+
+    if (!selectedChannelId) {
+      modal.warning({
+        title: '无法生成落地页',
+        content: '请选择渠道，并根据需要查询 token 后再试。',
       })
       return false
     }
@@ -241,7 +322,32 @@ export const WorkflowGeneratePage: React.FC = () => {
       return
     }
     const templateId = selectedTemplateIds[0]
-    previewMutation.mutate(templateId)
+    previewMutation.mutate({
+      video_ids: selectedVideoIds,
+      template_id: templateId,
+      channel_id: selectedChannelId as number,
+    })
+  }
+
+  const handleChannelChange = (value?: number) => {
+    setSelectedChannelId(value)
+    setTokenInfo(null)
+    setTokenAlert(null)
+  }
+
+  const handleSyncChannels = () => {
+    syncChannelsMutation.mutate()
+  }
+
+  const handleFetchToken = () => {
+    if (!selectedChannelId) {
+      modal.warning({
+        title: '请先选择渠道',
+        content: '请选择渠道后再查询 token',
+      })
+      return
+    }
+    channelTokenMutation.mutate(selectedChannelId)
   }
 
   return (
@@ -296,6 +402,15 @@ export const WorkflowGeneratePage: React.FC = () => {
                 )
               }
             />
+            <Select
+              value={viewSort}
+              style={{ width: 200 }}
+              onChange={(val) => setViewSort(val)}
+            >
+              <Option value="none">播放量排序：默认</Option>
+              <Option value="desc">播放量排序：从高到低</Option>
+              <Option value="asc">播放量排序：从低到高</Option>
+            </Select>
             <Text type="secondary">
               已选视频数：{selectedVideoIds.length} / {allVideos.length}
             </Text>
@@ -313,7 +428,7 @@ export const WorkflowGeneratePage: React.FC = () => {
               <div>加载中...</div>
             )}
             {!videosLoading &&
-              filteredVideos.map((video) => {
+              sortedVideos.map((video) => {
                 const isSelected = selectedVideoIds.includes(video.id)
                 const orderIndex = selectedVideoIds.indexOf(video.id)
                 const orderNumber =
@@ -467,6 +582,98 @@ export const WorkflowGeneratePage: React.FC = () => {
           />
         </div>
 
+        {/* Step 3：选择渠道并注入 token */}
+        <div>
+          <Title level={5}>Step 3：选择渠道并注入 token</Title>
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message="请选择渠道后再生成或预览落地页，查询 token 后可确认注入信息是否正确。"
+          />
+          <Space
+            style={{ marginBottom: 12, flexWrap: 'wrap', width: '100%' }}
+            size={12}
+          >
+            <Select
+              showSearch
+              allowClear
+              placeholder={
+                channels.length === 0
+                  ? '暂无渠道，请先同步'
+                  : '请选择渠道'
+              }
+              optionFilterProp="children"
+              style={{ minWidth: 260 }}
+              value={selectedChannelId}
+              loading={isChannelListLoading}
+              onChange={(value: number | undefined) =>
+                handleChannelChange(value ?? undefined)
+              }
+            >
+              {channels.map((channel) => (
+                <Option key={channel.id} value={channel.id}>
+                  {channel.name}（ID：{channel.id}）
+                </Option>
+              ))}
+            </Select>
+            <Button
+              onClick={handleSyncChannels}
+              loading={syncChannelsMutation.isPending}
+            >
+              同步渠道
+            </Button>
+            <Button
+              type="primary"
+              ghost
+              disabled={!selectedChannelId}
+              loading={channelTokenMutation.isPending}
+              onClick={handleFetchToken}
+            >
+              查询 token
+            </Button>
+          </Space>
+          {tokenAlert && (
+            <Alert
+              type={tokenAlert.status}
+              showIcon
+              message={tokenAlert.message}
+              style={{ marginBottom: 12 }}
+            />
+          )}
+          {tokenInfo && (
+            <Card
+              size="small"
+              style={{
+                background: '#fafafa',
+                borderStyle: 'dashed',
+                maxWidth: 640,
+              }}
+            >
+              <Paragraph style={{ marginBottom: 4 }}>
+                渠道 ID：<Text strong>{tokenInfo.channel_id}</Text>
+              </Paragraph>
+              {selectedChannel && (
+                <Paragraph style={{ marginBottom: 4 }}>
+                  渠道名称：<Text>{selectedChannel.name}</Text>
+                </Paragraph>
+              )}
+              <Paragraph style={{ marginBottom: 4 }}>
+                渠道编码：<Text>{tokenInfo.channel_code}</Text>
+              </Paragraph>
+              <Paragraph
+                copyable={{ text: tokenInfo.token }}
+                style={{ marginBottom: 0 }}
+              >
+                Token：
+                <Text code style={{ wordBreak: 'break-all' }}>
+                  {tokenInfo.token}
+                </Text>
+              </Paragraph>
+            </Card>
+          )}
+        </div>
+
         {/* 操作区 */}
         <div>
           <Button
@@ -475,7 +682,11 @@ export const WorkflowGeneratePage: React.FC = () => {
             loading={createMutation.isPending}
             onClick={() => {
               if (!validateSelection()) return
-              createMutation.mutate()
+              createMutation.mutate({
+                video_ids: selectedVideoIds,
+                template_ids: selectedTemplateIds,
+                channel_id: selectedChannelId as number,
+              })
             }}
           >
             生成落地页
