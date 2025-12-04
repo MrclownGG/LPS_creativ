@@ -34,6 +34,7 @@ import {
   previewWorkflow,
   type WorkflowGenerateInput,
   type WorkflowPreviewInput,
+  type LandingPageLanguage,
 } from '../api/workflows'
 
 const { Title, Paragraph, Text } = Typography
@@ -82,6 +83,12 @@ export const WorkflowGeneratePage: React.FC = () => {
     [channels, selectedChannelId],
   )
   const isChannelListLoading = channelsLoading || channelsFetching
+  const [language, setLanguage] = useState<LandingPageLanguage>('zh')
+  const languageOptions: { label: string; value: LandingPageLanguage }[] = [
+    { label: '中文', value: 'zh' },
+    { label: '英文', value: 'en' },
+    { label: '葡萄牙语', value: 'pt' },
+  ]
 
   const {
     data: videoData,
@@ -326,6 +333,7 @@ export const WorkflowGeneratePage: React.FC = () => {
       video_ids: selectedVideoIds,
       template_id: templateId,
       channel_id: selectedChannelId as number,
+      language,
     })
   }
 
@@ -632,6 +640,17 @@ export const WorkflowGeneratePage: React.FC = () => {
             >
               查询 token
             </Button>
+            <Select<LandingPageLanguage>
+              value={language}
+              style={{ width: 180 }}
+              onChange={(val) => setLanguage(val as LandingPageLanguage)}
+            >
+              {languageOptions.map((opt) => (
+                <Option key={opt.value} value={opt.value}>
+                  语言：{opt.label}
+                </Option>
+              ))}
+            </Select>
           </Space>
           {tokenAlert && (
             <Alert
@@ -691,6 +710,7 @@ export const WorkflowGeneratePage: React.FC = () => {
                 video_ids: selectedVideoIds,
                 template_ids: selectedTemplateIds,
                 channel_id: selectedChannelId as number,
+                language,
               })
             }}
           >
