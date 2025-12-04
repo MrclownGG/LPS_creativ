@@ -131,7 +131,7 @@ def _fetch_channel_token_from_external(
     """
     token_api = settings.external_token_api_url
     if not token_api:
-        return False, "EXTERNAL_TOKEN_API_URL 未配置，请先在 .env 中设置", None, None
+        return False, "EXTERNAL_TOKEN_API_URL 未配置，请先在 .env 中设置", None, None, None
 
     url = str(token_api)
     headers: Dict[str, str] = {}
@@ -143,7 +143,7 @@ def _fetch_channel_token_from_external(
     try:
         resp = httpx.post(url, headers=headers, data=payload, timeout=10.0)
     except httpx.RequestError as exc:  # pragma: no cover - 网络异常
-        return False, f"调用外部渠道 token 接口失败: {exc}", None, None
+        return False, f"调用外部渠道 token 接口失败: {exc}", None, None, None
 
     if resp.status_code != 200:
         return (
@@ -160,7 +160,7 @@ def _fetch_channel_token_from_external(
     try:
         payload = json.loads(text)
     except ValueError:
-        return False, "外部渠道 token 接口返回内容不是合法 JSON", None, None
+        return False, "外部渠道 token 接口返回内容不是合法 JSON", None, None, None
 
     data_field = payload.get("data")
     token: Optional[str] = None
@@ -205,7 +205,7 @@ def _fetch_channel_token_from_external(
         )
 
     if not token:
-        return False, "外部渠道 token 接口未返回 token 字段", None, remote_code
+        return False, "外部渠道 token 接口未返回 token 字段", None, remote_code, None
 
     return True, "ok", token, remote_code, external_channel_id
 
@@ -279,6 +279,7 @@ class ChannelTokenData(BaseModel):
     channel_code: str
     channel_id: int
     token: str
+    external_channel_id: Optional[str] = None
 
 
 class ChannelTokenResponse(BaseModel):
