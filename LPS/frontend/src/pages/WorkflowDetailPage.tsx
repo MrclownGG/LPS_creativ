@@ -220,7 +220,7 @@ export const WorkflowDetailPage: React.FC = () => {
     {
       title: '生成页面 / 语言',
       dataIndex: 'generated_page_url',
-      width: 320,
+      width: 520,
       render: (url: string, record: LandingPage) => {
         const previewUrl = resolvePreviewUrl(url)
         return (
@@ -257,8 +257,8 @@ export const WorkflowDetailPage: React.FC = () => {
             {previewUrl ? (
               <div
                 style={{
-                  width: 220,
-                  height: 420,
+                  width: 320,
+                  height: 620,
                   borderRadius: 12,
                   border: '1px solid #e5e5e5',
                   overflow: 'hidden',
@@ -275,8 +275,8 @@ export const WorkflowDetailPage: React.FC = () => {
             ) : (
               <div
                 style={{
-                  width: 220,
-                  height: 420,
+                  width: 320,
+                  height: 620,
                   borderRadius: 12,
                   border: '1px dashed #ddd',
                   background: '#fafafa',
