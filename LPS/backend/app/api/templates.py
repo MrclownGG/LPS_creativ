@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Template
 from app.db.session import get_db
+from .workflows import _build_static_prefix, _rewrite_static_urls
 
 router = APIRouter(tags=["templates"])
 
@@ -338,22 +339,10 @@ def preview_template(
     )
 
   # 计算模板静态资源前缀（/templates/xxx），用于修正相对路径
-  static_prefix = "/templates"
-  if template.static_assets_path:
-    assets_path = Path(template.static_assets_path)
-    templates_root = _get_templates_root()
-    try:
-      if assets_path.is_absolute():
-        rel = assets_path.relative_to(templates_root)
-      else:
-        rel = (templates_root / assets_path).relative_to(templates_root)
-      static_prefix = f"/templates/{rel.as_posix()}"
-    except Exception:
-      static_prefix = "/templates"
+  static_prefix = _build_static_prefix(template.static_assets_path, templates_root)
 
   # 将模板中的相对静态资源路径 ./xxx 改写为以 /templates/... 开头的绝对路径
-  html_content = html_content.replace('href="./', f'href="{static_prefix}/')
-  html_content = html_content.replace('src="./', f'src="{static_prefix}/')
+  html_content = _rewrite_static_urls(html_content, static_prefix)
 
   # 注入一个空的选中视频列表，方便模板脚本统一处理
   selected_json = json.dumps([], ensure_ascii=False)
@@ -386,4 +375,3 @@ def preview_template(
   preview_url = f"/generated/template_preview/{filename}"
   data = TemplatePreviewData(preview_url=preview_url)
   return TemplatePreviewResponse(code=0, message="ok", data=data)
-

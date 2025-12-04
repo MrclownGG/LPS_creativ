@@ -26,6 +26,16 @@ class Settings(BaseModel):
     external_video_api_url: Optional[AnyUrl] = None
     # 若对方接口需要鉴权，可在此配置 token（如 Bearer Token / API Key 等）
     external_video_api_token: Optional[str] = None
+    # 外部视频封面图基础 URL，例如：https://stcine.com/
+    # 这里使用 Optional[str]，避免因 URL 格式问题导致整个应用启动失败
+    external_video_image_base: Optional[str] = None
+
+    # 外部渠道配置接口（可选）
+    external_channel_api_url: Optional[AnyUrl] = None
+    # 若渠道接口需要鉴权，可在此配置 token（如 Bearer Token / API Key 等）
+    external_channel_api_token: Optional[str] = None
+    # Separate API for channel token if needed
+    external_token_api_url: Optional[AnyUrl] = None
 
 
 @functools.lru_cache(maxsize=1)
@@ -48,6 +58,11 @@ def get_settings() -> Settings:
             database_url=os.environ["DATABASE_URL"],
             external_video_api_url=os.getenv("EXTERNAL_VIDEO_API_URL") or None,
             external_video_api_token=os.getenv("EXTERNAL_VIDEO_API_TOKEN") or None,
+            external_video_image_base=os.getenv("EXTERNAL_VIDEO_IMAGE_BASE") or None,
+            external_channel_api_url=os.getenv("EXTERNAL_CHANNEL_API_URL") or None,
+            external_channel_api_token=os.getenv("EXTERNAL_CHANNEL_API_TOKEN")
+            or None,
+            external_token_api_url=os.getenv("EXTERNAL_TOKEN_API_URL") or None,
         )
     except KeyError as exc:
         missing = ", ".join([str(exc)])
@@ -56,3 +71,4 @@ def get_settings() -> Settings:
         ) from exc
     except ValidationError as exc:
         raise RuntimeError(f"Invalid configuration: {exc}") from exc
+

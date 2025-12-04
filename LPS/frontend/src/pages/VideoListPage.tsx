@@ -33,6 +33,45 @@ const { Search } = Input
 const { RangePicker } = DatePicker
 const { Option } = Select
 
+const LAST_SYNC_RANGE_KEY = 'video-last-sync-range'
+
+const loadLastSyncRange = ():
+  | {
+      start: string
+      end: string
+    }
+  | null => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  try {
+    const raw = window.localStorage.getItem(LAST_SYNC_RANGE_KEY)
+    if (!raw) {
+      return null
+    }
+    const parsed = JSON.parse(raw)
+    if (
+      parsed &&
+      typeof parsed.start === 'string' &&
+      typeof parsed.end === 'string'
+    ) {
+      return parsed
+    }
+  } catch {
+    // ignore malformed data
+  }
+  return null
+}
+
+const persistLastSyncRange = (range: { start: string; end: string } | null) => {
+  if (typeof window === 'undefined') return
+  if (range) {
+    window.localStorage.setItem(LAST_SYNC_RANGE_KEY, JSON.stringify(range))
+  } else {
+    window.localStorage.removeItem(LAST_SYNC_RANGE_KEY)
+  }
+}
+
 export const VideoListPage: React.FC = () => {
   const queryClient = useQueryClient()
 
@@ -40,6 +79,15 @@ export const VideoListPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(54)
   const [keyword, setKeyword] = useState('')
   const [viewSort, setViewSort] = useState<'none' | 'asc' | 'desc'>('none')
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>(
+    undefined,
+  )
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null)
+  const [lastSyncRange, setLastSyncRange] = useState<{
+    start: string
+    end: string
+  } | null>(() => loadLastSyncRange())
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
   const [editingVideo, setEditingVideo] = useState<Video | null>(null)
@@ -57,6 +105,16 @@ export const VideoListPage: React.FC = () => {
 
   const backendBaseUrl =
     apiClient.defaults.baseURL?.replace(/\/api\/?$/, '') ?? ''
+
+  // 动态收集当前已有的分类（包含 stcine_hot 等历史值）
+  const categoryOptions =
+    Array.from(
+      new Set(
+        (data?.items ?? [])
+          .map((v) => v.category)
+          .filter((c): c is string => !!c),
+      ),
+    ) || []
 
   const createMutation = useMutation({
     mutationFn: createVideo,
@@ -114,6 +172,14 @@ export const VideoListPage: React.FC = () => {
       message.success(
         `从 API 导入完成，新建 ${result.imported_count} 条，更新 ${result.updated_count} 条`,
       )
+      if (result.start_date && result.end_date) {
+        const range = {
+          start: result.start_date,
+          end: result.end_date,
+        }
+        setLastSyncRange(range)
+        persistLastSyncRange(range)
+      }
       setIsSyncModalOpen(false)
       queryClient.invalidateQueries({ queryKey: ['videos'] })
     },
@@ -237,16 +303,44 @@ export const VideoListPage: React.FC = () => {
     input.click()
   }
 
+  // 本地过滤
   let filteredItems =
     data?.items.filter((video) => {
-      if (!keyword) return true
-      const lower = keyword.toLowerCase()
-      return (
-        video.title.toLowerCase().includes(lower) ||
-        (video.category ?? '').toLowerCase().includes(lower)
-      )
+      // 关键字：标题 / 分类模糊匹配
+      if (keyword) {
+        const lower = keyword.toLowerCase()
+        const inTitle = video.title.toLowerCase().includes(lower)
+        const inCategory = (video.category ?? '').toLowerCase().includes(lower)
+        if (!inTitle && !inCategory) {
+          return false
+        }
+      }
+
+      // 分类筛选
+      if (categoryFilter && video.category !== categoryFilter) {
+        return false
+      }
+
+      // 日期范围筛选（基于 updated_at）
+      if (dateRange && dateRange[0] && dateRange[1]) {
+        if (!video.updated_at) {
+          return false
+        }
+        const updated = dayjs(video.updated_at)
+        if (!updated.isValid()) {
+          return false
+        }
+        const start = dateRange[0].startOf('day')
+        const end = dateRange[1].endOf('day')
+        if (updated.isBefore(start) || updated.isAfter(end)) {
+          return false
+        }
+      }
+
+      return true
     }) ?? []
 
+  // 播放量排序
   if (viewSort === 'asc') {
     filteredItems = [...filteredItems].sort(
       (a, b) => a.view_count - b.view_count,
@@ -260,10 +354,13 @@ export const VideoListPage: React.FC = () => {
   const handleThumbClick = (video: Video) => {
     const url = video.poster_url
     if (!url) return
-    const src =
+    const raw =
       /^https?:\/\//i.test(url) || url.startsWith('//')
         ? url
         : `${backendBaseUrl}${url}`
+    // 过滤掉已知无效的 stcine 域名封面，避免预览 404
+    const src = raw && raw.includes('stcine.com') ? '' : raw
+    if (!src) return
     setPreviewImageUrl(src)
     setPreviewVisible(true)
   }
@@ -272,10 +369,11 @@ export const VideoListPage: React.FC = () => {
     <Card>
       <div
         style={{
-          marginBottom: 16,
+          marginBottom: 8,
           display: 'flex',
           gap: 16,
           alignItems: 'center',
+          flexWrap: 'wrap',
         }}
       >
         <Search
@@ -289,29 +387,59 @@ export const VideoListPage: React.FC = () => {
           手动导入
         </Button>
         <Button onClick={handleOpenSyncModal}>从 API 导入</Button>
-        <Button
-          type="link"
-          onClick={() =>
-            setViewSort((prev) =>
-              prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none',
+        <Select
+          allowClear
+          placeholder="按分类筛选"
+          style={{ width: 160 }}
+          value={categoryFilter}
+          onChange={(value) => setCategoryFilter(value || undefined)}
+        >
+          {categoryOptions.map((c) => (
+            <Option key={c} value={c}>
+              {c}
+            </Option>
+          ))}
+        </Select>
+        <RangePicker
+          allowEmpty={[true, true]}
+          value={dateRange as any}
+          onChange={(values) =>
+            setDateRange(
+              values && values[0] && values[1]
+                ? [values[0], values[1]]
+                : null,
             )
           }
+        />
+        <Select
+          value={viewSort}
+          style={{ width: 180 }}
+          onChange={(val) => setViewSort(val)}
         >
-          播放量排序：
-          {viewSort === 'none'
-            ? '默认'
-            : viewSort === 'desc'
-              ? '高→低'
-              : '低→高'}
-        </Button>
+          <Option value="none">播放量排序：默认</Option>
+          <Option value="desc">播放量排序：高 → 低</Option>
+          <Option value="asc">播放量排序：低 → 高</Option>
+        </Select>
       </div>
+
+      {lastSyncRange && (
+        <div
+          style={{
+            marginBottom: 8,
+            fontSize: 12,
+            color: '#999',
+          }}
+        >
+          当前热门视频获取时间段：{lastSyncRange.start} ~ {lastSyncRange.end}
+        </div>
+      )}
 
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
           gap: 16,
-          marginTop: 32,
+          marginTop: 16,
         }}
       >
         {isLoading && filteredItems.length === 0 ? (
@@ -319,12 +447,14 @@ export const VideoListPage: React.FC = () => {
         ) : (
           filteredItems.map((video) => {
             const url = video.poster_url
-            const src =
+            const raw =
               url && (/^https?:\/\//i.test(url) || url.startsWith('//'))
                 ? url
                 : url
                   ? `${backendBaseUrl}${url}`
                   : ''
+            // 过滤掉已知无效的 stcine 域名封面，保留卡片但不显示坏图
+            const src = raw && raw.includes('stcine.com') ? '' : raw
 
             const updatedText = video.updated_at
               ? dayjs(video.updated_at).format('YYYY-MM-DD HH:mm')
@@ -496,7 +626,7 @@ export const VideoListPage: React.FC = () => {
             <Input placeholder="请输入视频标题" />
           </Form.Item>
           <Form.Item label="分类" name="category">
-            <Input placeholder="例如 tutorial、promo 等，可留空" />
+            <Input placeholder="例如：电影 / 电视剧 / 动漫 / 综艺，可留空" />
           </Form.Item>
           <Form.Item
             label="封面图 URL"

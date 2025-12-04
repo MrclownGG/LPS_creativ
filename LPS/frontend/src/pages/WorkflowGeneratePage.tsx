@@ -21,6 +21,13 @@ import dayjs, { type Dayjs } from 'dayjs'
 
 import { useVideos, type Video } from '../api/videos'
 import { useTemplates, type Template } from '../api/templates'
+import {
+  useChannels,
+  type Channel,
+  syncChannels,
+  fetchChannelToken,
+  type ChannelTokenData,
+} from '../api/channels'
 import { apiClient } from '../api/client'
 import { generateWorkflow, previewWorkflow } from '../api/workflows'
 
@@ -47,6 +54,7 @@ export const WorkflowGeneratePage: React.FC = () => {
     undefined,
   )
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null)
+  const [viewSort, setViewSort] = useState<'none' | 'asc' | 'desc'>('none')
 
   const {
     data: videoData,

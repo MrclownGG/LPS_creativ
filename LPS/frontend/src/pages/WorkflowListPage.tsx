@@ -109,6 +109,42 @@ export const WorkflowListPage: React.FC = () => {
     })
   }
 
+  const renderLanguagesSummary = (wf: Workflow): string => {
+    const langs = wf.languages ?? []
+    if (!wf.landing_page_count) {
+      return '暂无落地页'
+    }
+    if (!langs.length) {
+      return '未知'
+    }
+    const unique = Array.from(new Set(langs))
+    if (unique.length === 1) {
+      const lang = unique[0]
+      if (lang === 'en') return '英文'
+      if (lang === 'pt') return '葡萄牙语'
+      return '中文'
+    }
+    return '多语言'
+  }
+
+  const renderChannelsSummary = (wf: Workflow): string => {
+    if (!wf.landing_page_count) {
+      return '暂无落地页'
+    }
+    const channels = wf.channel_names ?? []
+    if (!channels.length) {
+      return '未选择渠道'
+    }
+    const unique = Array.from(new Set(channels.filter(Boolean)))
+    if (!unique.length) {
+      return '未选择渠道'
+    }
+    if (unique.length <= 2) {
+      return unique.join(' / ')
+    }
+    return `${unique.slice(0, 2).join(' / ')} 等 ${unique.length} 个`
+  }
+
   const columns: ColumnsType<Workflow> = [
     {
       title: 'ID',
@@ -123,11 +159,39 @@ export const WorkflowListPage: React.FC = () => {
     {
       title: '状态',
       dataIndex: 'status',
-      width: 160,
-      render: (value: WorkflowStatus) => (
-        <Tag color={WORKFLOW_STATUS_COLOR[value]}>
-          {WORKFLOW_STATUS_LABEL[value] ?? value}
-        </Tag>
+      width: 260,
+      render: (value: WorkflowStatus, record) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Tag color={WORKFLOW_STATUS_COLOR[value]}>
+            {WORKFLOW_STATUS_LABEL[value] ?? value}
+          </Tag>
+          <span style={{ fontSize: 12, color: '#666' }}>
+            广告图：{record.ad_image_count ?? 0} 张 ｜{' '}
+            {record.campaign_names && record.campaign_names.length > 0
+              ? `已关联投流计划：${record.campaign_names.join(' / ')}`
+              : '尚未关联投流计划'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      title: '语言',
+      dataIndex: 'languages',
+      width: 120,
+      render: (_: unknown, record: Workflow) => (
+        <span style={{ fontSize: 12, color: '#666' }}>
+          {renderLanguagesSummary(record)}
+        </span>
+      ),
+    },
+    {
+      title: '渠道',
+      dataIndex: 'channel_names',
+      width: 200,
+      render: (_: unknown, record: Workflow) => (
+        <span style={{ fontSize: 12, color: '#666' }}>
+          {renderChannelsSummary(record)}
+        </span>
       ),
     },
     {
@@ -249,7 +313,7 @@ export const WorkflowListPage: React.FC = () => {
             name="name"
             rules={[{ required: true, message: '请输入批次名称' }]}
           >
-            <Input placeholder="例如：11 月黑五活动 - 视频合集 A" />
+            <Input placeholder="例如：1 月黑五活动 - 视频合集 A" />
           </Form.Item>
           <Form.Item label="创建人" name="created_by">
             <Input placeholder="例如：designer_a，可留空使用默认" />
@@ -259,4 +323,3 @@ export const WorkflowListPage: React.FC = () => {
     </Card>
   )
 }
-

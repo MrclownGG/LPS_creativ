@@ -10,6 +10,8 @@ export type WorkflowStatus =
   | 'in_use'
   | 'archived'
 
+export type LandingPageLanguage = 'zh' | 'en' | 'pt'
+
 export interface Workflow {
   id: number
   name: string
@@ -17,6 +19,11 @@ export interface Workflow {
   created_by: string
   created_at: string
   landing_page_count: number
+  ad_image_count: number
+  campaign_count: number
+  campaign_names: string[]
+  languages?: LandingPageLanguage[]
+  channel_names?: string[]
 }
 
 export interface WorkflowListData {
@@ -41,11 +48,21 @@ export interface WorkflowCreateInput {
   created_by?: string
 }
 
+export interface WorkflowSelectedVideo {
+  id: number
+  title: string
+  poster_url: string
+}
+
 export interface LandingPage {
   id: number
   template_id: number
+  channel_id?: number
   selected_video_ids: number[]
   generated_page_url: string
+  language: LandingPageLanguage
+  selected_videos?: WorkflowSelectedVideo[]
+  package_url?: string
 }
 
 export interface WorkflowDetailData {
@@ -56,6 +73,9 @@ export interface WorkflowDetailData {
   created_at: string
   updated_at: string
   landing_pages: LandingPage[]
+  ad_image_count: number
+  campaign_count: number
+  campaign_names: string[]
 }
 
 export interface WorkflowDetailResponse {
@@ -64,14 +84,36 @@ export interface WorkflowDetailResponse {
   data: WorkflowDetailData
 }
 
+export interface WorkflowAdImage {
+  id: number
+  file_url: string
+  file_name?: string
+}
+
+interface WorkflowAdImageListResponse {
+  code: number
+  message: string
+  data: WorkflowAdImage[]
+}
+
+interface WorkflowAdImageUploadResponse {
+  code: number
+  message: string
+  data: WorkflowAdImage
+}
+
 export interface WorkflowGenerateInput {
   video_ids: number[]
   template_ids: number[]
+  channel_id: number
+  language?: LandingPageLanguage
 }
 
 export interface WorkflowPreviewInput {
   video_ids: number[]
   template_id: number
+  channel_id: number
+  language?: LandingPageLanguage
 }
 
 export const getWorkflows = async (
@@ -140,6 +182,33 @@ export const useWorkflowDetail = (
   })
 }
 
+export const getWorkflowAdImages = async (
+  id: number,
+): Promise<WorkflowAdImage[]> => {
+  const res = await apiClient.get<WorkflowAdImageListResponse>(
+    `/workflows/${id}/ad-images`,
+  )
+  if (res.data.code !== 0) {
+    throw new Error(res.data.message || '获取广告图失败')
+  }
+  return res.data.data
+}
+
+export const useWorkflowAdImages = (
+  id?: number,
+): UseQueryResult<WorkflowAdImage[], AxiosError> => {
+  return useQuery<WorkflowAdImage[], AxiosError>({
+    queryKey: ['workflow-ad-images', id],
+    queryFn: () => {
+      if (!id) {
+        throw new Error('workflow id is required')
+      }
+      return getWorkflowAdImages(id)
+    },
+    enabled: !!id,
+  })
+}
+
 export const generateWorkflow = async (
   id: number,
   payload: WorkflowGenerateInput,
@@ -191,3 +260,28 @@ export const previewWorkflow = async (
   return res.data.data.preview_url
 }
 
+export const uploadWorkflowAdImage = async (
+  workflowId: number,
+  file: File,
+  author?: string,
+): Promise<WorkflowAdImage> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (author) {
+    formData.append('author', author)
+  }
+
+  const res = await apiClient.post<WorkflowAdImageUploadResponse>(
+    `/workflows/${workflowId}/ad-images/upload`,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    },
+  )
+
+  if (res.data.code !== 0) {
+    throw new Error(res.data.message || '上传广告图失败')
+  }
+
+  return res.data.data
+}

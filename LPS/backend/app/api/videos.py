@@ -52,7 +52,6 @@ class VideoListResponse(BaseModel):
 class VideoCreateRequest(BaseModel):
     """
     手动导入视频素材的请求体。
-
     external_id 可选，用于与外部系统对齐；本地录入的素材可留空。
     """
 
@@ -61,7 +60,7 @@ class VideoCreateRequest(BaseModel):
     )
     title: str = Field(..., description="视频标题")
     category: Optional[str] = Field(
-        default=None, description="视频分类，例如 tutorial / promo"
+        default=None, description="视频分类，例如：电影 / 电视剧 / 动漫 / 综艺 等"
     )
     poster_url: str = Field(..., description="视频封面 URL")
     view_count: int = Field(
@@ -200,19 +199,17 @@ def update_video(
 ) -> VideoCreateResponse:
     video: Optional[Video] = db.get(Video, video_id)
     if not video:
-        # 正常使用下不会出现（都是从列表进入编辑），这里返回 code=1 和占位数据
-        dummy = VideoItem(
-            id=0,
-            title="",
-            poster_url="",
-            category=None,
-            view_count=0,
-            updated_at=None,
-        )
         return VideoCreateResponse(
             code=1,
             message=f"video {video_id} not found",
-            data=dummy,
+            data=VideoItem(
+                id=0,
+                title="",
+                poster_url="",
+                category=None,
+                view_count=0,
+                updated_at=None,
+            ),
         )
 
     video.title = payload.title
@@ -318,7 +315,7 @@ async def upload_video_poster(
     summary="从外部视频系统同步热门视频",
     description=(
         "根据配置的 EXTERNAL_VIDEO_API_URL 调用外部热门视频排行榜接口，"
-        "将结果写入本地 video 表。当前版本实现了基于 STCine 排行榜的同步逻辑。"
+        "将结果写入本地 video 表。当前实现基于 STCine 排行榜。"
     ),
 )
 def sync_videos(
@@ -346,6 +343,7 @@ def sync_videos(
             data={},
         )
 
+    # 处理日期默认值
     if start_date is None and end_date is None:
         yesterday = date.today() - timedelta(days=1)
         start_date = yesterday
@@ -427,13 +425,52 @@ def sync_videos(
         name_pt = item.get("name")
         langue = item.get("langue")
 
+        # 分类：根据 category_id 映射到中文类型
+        category_id = item.get("category_id")
+        try:
+            category_id_int = int(category_id) if category_id is not None else None
+        except (TypeError, ValueError):
+            category_id_int = None
+
+        category_map = {
+            1: "电影",
+            2: "电视剧",
+            3: "动漫",
+            4: "综艺",
+        }
+        category_name = category_map.get(category_id_int, "stcine_hot")
+
+        # 外部封面图：pic 字段配合 EXTERNAL_VIDEO_IMAGE_BASE
+        pic = item.get("pic") or ""
+        pic = str(pic)
+        poster_url_from_pic: str = ""
+        if pic:
+            if pic.startswith("http://") or pic.startswith("https://"):
+                poster_url_from_pic = pic
+            elif settings.external_video_image_base:
+                base_img = str(settings.external_video_image_base).rstrip("/")
+                poster_url_from_pic = f"{base_img}/{pic.lstrip('/')}"
+
+        # 如果最终封面 URL 指向 stcine.com，则跳过该条素材（不入库也不更新）
+        if poster_url_from_pic and "stcine.com" in poster_url_from_pic.lower():
+            continue
+
         stmt = select(Video).where(Video.external_id == external_id)
         existing: Optional[Video] = db.execute(stmt).scalar_one_or_none()
 
         if existing:
+            # 更新标题、观看量、分类
             existing.title = ch_name
             existing.view_count = view_count_int
-            existing.category = "stcine_hot"
+            existing.category = category_name
+
+            # 外部封面：
+            # - 若已有本地封面（/generated/ 开头），不覆盖；
+            # - 否则每次同步都用最新的外部 pic 更新，方便修正之前的错误域名。
+            if poster_url_from_pic:
+                existing_url = str(existing.poster_url or "")
+                if not existing_url.startswith("/generated/"):
+                    existing.poster_url = poster_url_from_pic
 
             metadata = dict(existing.metadata_ or {})
             metadata.update(
@@ -442,6 +479,8 @@ def sync_videos(
                     "movie_id": movie_id_int,
                     "name_pt": name_pt,
                     "langue": langue,
+                    "category_id": category_id_int,
+                    "category_name": category_name,
                 }
             )
             existing.metadata_ = metadata
@@ -452,12 +491,14 @@ def sync_videos(
                 "movie_id": movie_id_int,
                 "name_pt": name_pt,
                 "langue": langue,
+                "category_id": category_id_int,
+                "category_name": category_name,
             }
             video = Video(
                 external_id=external_id,
                 title=ch_name,
-                category="stcine_hot",
-                poster_url="",
+                category=category_name,
+                poster_url=poster_url_from_pic or "",
                 view_count=view_count_int,
                 metadata_=metadata,
                 status="active",
@@ -479,4 +520,3 @@ def sync_videos(
             "limit": limit,
         },
     )
-

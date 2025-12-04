@@ -133,10 +133,18 @@ class LandingPage(Base):
     template_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("template.id"), nullable=False
     )
+    # 选中的投放渠道 ID（campaign_channel_dict.id），一个落地页只对应一个渠道
+    channel_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("campaign_channel_dict.id"),
+        nullable=True,
+    )
     selected_video_ids: Mapped[List[int]] = mapped_column(
         ARRAY(BigInteger), nullable=False
     )
     generated_page_url: Mapped[str] = mapped_column(Text, nullable=False)
+    # 页面语言代码，例如 zh / en / pt，默认 zh
+    language: Mapped[str] = mapped_column(String(10), nullable=False, default="zh")
     created_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now()
     )
@@ -254,3 +262,52 @@ class CampaignWorkflowMap(Base):
         Index("idx_cwm_workflow", "workflow_id"),
     )
 
+
+class CampaignChannelDict(Base):
+    """
+    投放渠道字典表 (`campaign_channel_dict`)
+
+    用于维护可选的投放渠道及其编码，campaign.channels 中存储的是 code。
+    """
+
+    __tablename__ = "campaign_channel_dict"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("code", name="uq_campaign_channel_code"),
+        Index("idx_campaign_channel_status", "status"),
+    )
+
+
+class CampaignRegionDict(Base):
+    """
+    投放地区字典表 (`campaign_region_dict`)
+
+    用于维护可选的投放地区及其编码，campaign.regions 中存储的是 code。
+    """
+
+    __tablename__ = "campaign_region_dict"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("code", name="uq_campaign_region_code"),
+        Index("idx_campaign_region_status", "status"),
+    )
