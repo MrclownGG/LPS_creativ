@@ -564,11 +564,23 @@ def _build_selected_videos_payload(
     v = video_map.get(vid)
     if not v:
       continue
+
+    metadata = getattr(v, "metadata_", {}) or {}
+    if isinstance(metadata, str):
+      try:
+        metadata = json.loads(metadata)
+      except json.JSONDecodeError:
+        metadata = {}
+    elif not isinstance(metadata, dict):
+      metadata = {}
+
     payload.append(
         {
             "id": v.id,
             "poster_url": v.poster_url,
             "title": v.title,
+            "name_pt": metadata.get("name_pt"),
+            "name_en": metadata.get("name_en"),
         }
     )
 

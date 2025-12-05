@@ -11,12 +11,12 @@
   "text_slots": [
     {
       "match_class": "top-video-span",
-      "source": "title",
+      "source": "name_pt",
       "count": 1
     },
     {
       "match_class": "list-item-span",
-      "source": "title",
+      "source": "name_pt",
       "start_index": 1
     }
   ]
