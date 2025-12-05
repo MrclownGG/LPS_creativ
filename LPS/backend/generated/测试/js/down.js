@@ -1,4 +1,4 @@
-
+﻿
 function downApk() {
     if (appData && appData.userID) {
         // APP Share Param

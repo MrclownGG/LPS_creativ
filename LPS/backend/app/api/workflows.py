@@ -507,7 +507,11 @@ PHRASE_MAP = {
 }
 
 
-def _apply_language(html_content: str, language: Optional[str]) -> str:
+def _apply_language(
+  html_content: str,
+  language: Optional[str],
+  template_translations: Optional[Dict[str, Dict[str, str]]] = None,
+) -> str:
   """
   根据选定语言替换模板中的固定文案，并更新 <html lang="...">。
 
@@ -533,9 +537,20 @@ def _apply_language(html_content: str, language: Optional[str]) -> str:
     )
 
   # 替换固定中文文案
-  for cn_text, langs in PHRASE_MAP.items():
-    target = langs.get(lang, cn_text)
-    if cn_text and target:
+  translation_sources: List[Dict[str, Dict[str, str]]] = []
+  if isinstance(template_translations, dict):
+    translation_sources.append(template_translations)
+  translation_sources.append(PHRASE_MAP)
+
+  visited: set[str] = set()
+  for mapping in translation_sources:
+    for cn_text, langs in mapping.items():
+      if not cn_text or cn_text in visited or not isinstance(langs, dict):
+        continue
+      visited.add(cn_text)
+      target = langs.get(lang)
+      if target is None:
+        target = langs.get("zh", cn_text) or cn_text
       html_content = html_content.replace(cn_text, target)
 
   return html_content
@@ -1179,8 +1194,13 @@ def generate_landing_pages(
     template_config = _get_template_config(html_path)
     image_slots = template_config.get("image_slots") if template_config else None
     text_slots = template_config.get("text_slots") if template_config else None
+    translations = (
+        template_config.get("translations")
+        if isinstance(template_config, dict)
+        else None
+    )
 
-    base_html = _apply_language(base_html, payload.language)
+    base_html = _apply_language(base_html, payload.language, translations)
     base_html = _inject_channel_tracking(
         base_html, channel_external_id, channel_token
     )
@@ -1403,6 +1423,11 @@ def preview_landing_page(
   template_config = _get_template_config(html_path)
   image_slots = template_config.get("image_slots") if template_config else None
   text_slots = template_config.get("text_slots") if template_config else None
+  translations = (
+      template_config.get("translations")
+      if isinstance(template_config, dict)
+      else None
+  )
 
   # 计算模板静态资源前缀（/templates/xxx），用于修正相对路径
   static_prefix = _build_static_prefix(template.static_assets_path, templates_root)
@@ -1410,7 +1435,7 @@ def preview_landing_page(
   # 将模板中的相对静态资源路径 ./xxx 改写为以 /templates/... 开头的绝对路径
   html_content = _rewrite_static_urls(html_content, static_prefix)
 
-  html_content = _apply_language(html_content, payload.language)
+  html_content = _apply_language(html_content, payload.language, translations)
   html_content = _inject_channel_tracking(
       html_content, channel_external_id, channel_token
   )
