@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/templates/topVideo/favicon.ico" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="expires" content="0" />
+
+  <script>
+    var webStartTime = new Date().getTime();
+    console.log("WEB START TIME", webStartTime);
+  </script>
+
+  <script>
+    !(function (f, b, e, v, n, t, s) {
+      if (f.fbq) return;
+      n = f.fbq = function () {
+        n.callMethod
+          ? n.callMethod.apply(n, arguments)
+          : n.queue.push(arguments);
+      };
+      if (!f._fbq) f._fbq = n;
+      n.push = n;
+      n.loaded = !0;
+      n.version = "2.0";
+      n.queue = [];
+      t = b.createElement(e);
+      t.async = !0;
+      t.src = v;
+      s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s);
+    })(
+      window,
+      document,
+      "script",
+      "https://connect.facebook.net/en_US/fbevents.js"
+    );
+  </script>
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+
+    .nav-box {
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      right: 0;
+      padding: 0.2rem 0.4rem;
+      display: flex;
+      align-items: center;
+      background-color: #181b22;
+    }
+
+    .nav-box .nav-logo-img {
+      width: 1.2rem;
+      height: 1.2rem;
+      margin-right: 0.2rem;
+    }
+
+    .nav-box .nav-info {
+      flex: 1;
+    }
+
+    .nav-box .nav-info .logo-text {
+      color: #fff;
+      font-size: 0.45rem;
+      line-height: 1;
+      margin-bottom: 0.1rem;
+    }
+
+    .nav-box .nav-info span {
+      font-size: 0.35rem;
+      line-height: 1;
+      color: #a1a5b3;
+      display: block;
+    }
+
+    .nav-box .nav-btn {
+      background: #ff1b1d;
+      border-radius: 0.25rem;
+      font-size: 0.3rem;
+      text-align: center;
+      color: #fff;
+      font-weight: 700;
+      padding: 0.2rem 0.4rem;
+    }
+
+    .app-box {
+      min-height: 100dvh;
+      min-height: 100vh;
+      padding-top: 1.7rem;
+      padding-bottom: 2.2rem;
+      box-sizing: border-box;
+      background-image: url("/templates/topVideo/images/bg.png");
+      background-color: #0d1825;
+      background-size: 100% 100%;
+    }
+
+    .app-title-box {
+      margin: 0 0.5rem;
+      text-align: center;
+    }
+
+    .app-title-box .app-title {
+      width: 100%;
+    }
+
+    .top-video-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.25rem 0 0.4rem;
+    }
+
+    .top-video-box .top-video-item {
+      position: relative;
+    }
+
+    .top-video-box .top-video-item .top-video-img {
+      width: 2.9rem;
+      height: 4.1rem;
+      border-radius: 0.1rem;
+      display: block;
+    }
+
+    .top-video-box .top-video-item .top-video-span {
+      width: 2.9rem;
+      text-align: center;
+      font-size: 0.36rem;
+      color: #818181;
+      overflow: hidden;
+      word-break: break-word;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+    }
+
+    .top-video-box .top-video-item .list-item-rating-top {
+      position: absolute;
+      top: -0.35rem;
+      left: -0.35rem;
+      width: 1.2rem;
+      height: 1.2rem;
+      background-image: url("/templates/topVideo/images/icon1.png");
+      background-size: 100% 100%;
+    }
+
+    .top-video-box .top-video-item .list-item-rating {
+      position: absolute;
+      width: 0.7rem;
+      line-height: 0.6rem;
+      top: -0.1rem;
+      right: 0rem;
+      text-align: center;
+      color: #fff;
+      font-size: 0.33rem;
+    }
+
+    .top-video-box .top-video-item .list-item-rating-bg {
+      position: absolute;
+      top: -0.1rem;
+      right: 0rem;
+      width: 0.7rem;
+      height: 0.7rem;
+    }
+
+    .list-box {
+      display: flex;
+      flex-wrap: wrap;
+      padding-left: 1.35rem;
+      padding-right: 1rem;
+    }
+
+    .list-box .list-item {
+      position: relative;
+      width: calc(100% / 3);
+      padding: 0 0.35rem 0.3rem 0;
+      box-sizing: border-box;
+    }
+
+    .list-box .list-item .list-item-img {
+      width: 100%;
+      height: 3rem;
+      border-radius: 0.1rem;
+      display: block;
+    }
+
+    .list-box .list-item .list-item-span {
+      text-align: center;
+      font-size: 0.3rem;
+      margin-top: 0.1rem;
+      color: #818181;
+      overflow: hidden;
+      word-break: break-word;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+    }
+
+    .list-box .list-item .list-item-rating-top {
+      position: absolute;
+      top: -0.35rem;
+      left: -0.35rem;
+      width: 1.2rem;
+      height: 1.2rem;
+      background-size: 100% 100%;
+    }
+    
+    .list-box .list-item:nth-child(1) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon2.png");
+    }
+
+    .list-box .list-item:nth-child(2) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon3.png");
+    }
+    
+    .list-box .list-item:nth-child(3) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon4.png");
+    }
+    
+    .list-box .list-item:nth-child(4) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon5.png");
+    }
+
+    .list-box .list-item:nth-child(5) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon6.png");
+    }
+    
+    .list-box .list-item:nth-child(6) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon7.png");
+    }
+    
+    .list-box .list-item:nth-child(7) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon8.png");
+    }
+    
+    .list-box .list-item:nth-child(8) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon9.png");
+    }
+    
+    .list-box .list-item:nth-child(9) .list-item-rating-top {
+      background-image: url("/templates/topVideo/images/icon10.png");
+    }
+
+
+    .list-box .list-item .list-item-rating {
+      position: absolute;
+      width: 0.7rem;
+      line-height: 0.6rem;
+      top: -0.1rem;
+      right: 0.38rem;
+      text-align: center;
+      color: #fff;
+      font-size: 0.33rem;
+    }
+
+    .list-box .list-item .list-item-rating-bg {
+      position: absolute;
+      top: -0.1rem;
+      right: 0.38rem;
+      width: 0.7rem;
+      height: 0.7rem;
+    }
+
+    .app-down-btn-box {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #181b22;
+      padding: 0.3rem 0.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .app-down-btn-box .app-down-btn {
+      background-color: #ff1b1d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.3rem;
+      width: 3.8rem;
+      height: 1rem;
+    }
+
+    .app-down-btn-box .app-down-btn-text {
+      font-size: 0.45rem;
+      font-weight: 600;
+      color: #fff;
+    }
+  </style>
+
+  <style>
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    .modal-content {
+      background: #0a0a0c;
+      padding: 0.8rem 0.5rem;
+      border-radius: 0.3rem;
+      width: 9rem;
+      display: none;
+      transform: scale(0.8);
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-content-show {
+      display: block;
+    }
+
+    .modal-title {
+      font-size: 0.5rem;
+      color: #fff;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .modal-span {
+      font-size: 0.4rem;
+      color: #ececec;
+      margin-top: 0.3rem;
+    }
+
+    .modal-progress-title {
+      color: #f93a44;
+      font-size: 0.8rem;
+      text-align: center;
+      font-weight: bold;
+      margin: 0.5rem 0;
+    }
+
+    .modal-progress-box {
+      position: relative;
+      width: 100%;
+      height: 0.4rem;
+      border-radius: 0.5rem;
+      background-color: #fff;
+      overflow: hidden;
+    }
+
+    .modal-progress-info {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      background-image: linear-gradient(90deg, #fd626a 0%, #f93a44 100%);
+    }
+
+    .modal-file-size {
+      color: #999;
+      text-align: right;
+      font-size: 0.4rem;
+      margin-top: 0.3rem;
+    }
+
+    .modal-file-btn,
+    .modal-file-btn1 {
+      border-radius: 1rem;
+      color: #000;
+      font-weight: 700;
+      background-color: #ccc;
+      font-size: 0.6rem;
+      text-align: center;
+      line-height: 1.7rem;
+      margin-top: 0.5rem;
+    }
+
+    .modal-file-btn {
+      color: #fff;
+      background-color: #f93a44;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.3);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(0.8);
+      }
+    }
+  </style>
+
+  <script>
+    var API_URL = "https://api.good-videos.link";
+
+    var channel = "3";
+    var defaultDownload =
+      "https://landing.good-videos.net/downloads/android/STCine_C7_2025092401.apk";
+
+    var apkNum = "";
+    var isDownloadLoading = 0;
+    var googleInfo = {
+      sendTo: "",
+      gtagId: "",
+    };
+    var facebookInfo = {
+      id: "1828426297802116",
+      token:
+        "EAAeZBva9MqaUBPzlFAqkvJ1aW3oDB2XTEyREHEmSrZBfl0mKTMiq0hT22GZCXToBFY8HzQ7PIiDEoL24NPZB36QpKnCvZCDM74jo1i2Frl9UALnDBrkWZCKKltxWXSbr2b1rgoHZBmuRZCncNso01ZCDveM76ZAOWEc3qxFZCC9ypOZASD7WVkHD4V4ZCLHogdxrBDQte8wZDZD",
+    };
+    var appData = null;
+  </script>
+
+  <script src="/templates/topVideo/js/common.js"></script>
+  <script src="/templates/topVideo/js/index.js"></script>
+  <link rel="stylesheet" href="/templates/topVideo/css/swiper-bundle.min.css" />
+  <script src="/templates/topVideo/js/swiper-bundle.min.js"></script>
+  <title>STCine</title>
+</head>
+<!-- {
+  "channel": 24,
+  "apkNum": "",
+  "isDownloadLoading": 0,
+  "defaultDownload": "https://landing.good-videos.net/downloads/android/STCine_C7_2025092401.apk",
+  "facebookInfo": {
+    "id": "1828426297802116",
+    "token": "EAAeZBva9MqaUBPzlFAqkvJ1aW3oDB2XTEyREHEmSrZBfl0mKTMiq0hT22GZCXToBFY8HzQ7PIiDEoL24NPZB36QpKnCvZCDM74jo1i2Frl9UALnDBrkWZCKKltxWXSbr2b1rgoHZBmuRZCncNso01ZCDveM76ZAOWEc3qxFZCC9ypOZASD7WVkHD4V4ZCLHogdxrBDQte8wZDZD"
+  },
+  "googleInfo": {
+    "sendTo": "",
+    "gtagId": ""
+  },
+  "lang": "pt", // pt | en
+  "list": [{"img": "", "title": "视频标题1", "rating": "8.0"}, {"img": "", "title": "视频标题2", "rating": "7.0"}, {"img": "", "title": "视频标题3", "rating": "6.0"}],
+  "nav": {
+    "title": "STCine",
+    "titleSpan": "免费网站",
+    "downText": "下载"
+  },
+  "downPopupInfo": {
+    "downTitle": "下载中...",
+    "downSpan": "下载中，稍等片刻！安装后，海量影视内容等你来看~",
+    "complete": "完成",
+    "cancel": "取消"
+  }
+} -->
+
+<body>
+  <header class="nav-box" onclick="downApk()">
+    <img src="/templates/topVideo/images/logo.png" alt="LOGO" class="nav-logo-img" />
+    <div class="nav-info">
+      <h2 class="logo-text">STCine</h2>
+      <span>免费网站</span>
+    </div>
+    <div class="nav-btn">下载</div>
+  </header>
+  <div class="app-box" onclick="downApk()">
+    <div class="app-title-box">
+      <img src="/templates/topVideo/images/en-title.png" class="app-title" />
+      <!-- <img src="/templates/topVideo/images/pt-title.png" class="app-title" /> -->
+    </div>
+    <div class="top-video-box">
+      <div class="top-video-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="top-video-img" />
+        <div class="top-video-span">视频标题1</div>
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">8.0</div>
+      </div>
+    </div>
+    <div class="list-box">
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">7.0</div>
+        <div class="list-item-span">视频标题2</div>
+      </div>
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">6.0</div>
+        <div class="list-item-span">视频标题3</div>
+      </div>
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">6.0</div>
+        <div class="list-item-span">视频标题3</div>
+      </div>
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">6.0</div>
+        <div class="list-item-span">视频标题3</div>
+      </div>
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">6.0</div>
+        <div class="list-item-span">视频标题3</div>
+      </div>
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">6.0</div>
+        <div class="list-item-span">视频标题3</div>
+      </div>
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">6.0</div>
+        <div class="list-item-span">视频标题3</div>
+      </div>
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">6.0</div>
+        <div class="list-item-span">视频标题3</div>
+      </div>
+      <div class="list-item">
+        <img src="/templates/topVideo/images/img1.jpg" class="list-item-img" />
+        <div class="list-item-rating-top"></div>
+        <img src="/templates/topVideo/images/icon0.png" class="list-item-rating-bg" />
+        <div class="list-item-rating">6.0</div>
+        <div class="list-item-span">视频标题3</div>
+      </div>
+    </div>
+  </div>
+  <div class="app-down-btn-box" onclick="downApk()">
+    <div class="app-down-btn">
+      <span class="app-down-btn-text">下载</span>
+    </div>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay" style="display: none">
+    <div id="modal-content" class="modal-content">
+      <div class="modal-title">下载中...</div>
+      <div id="modal-progress-title" class="modal-progress-title">0%</div>
+      <div class="modal-progress-box">
+        <div id="modal-progress-info" class="modal-progress-info" style="width: 0%"></div>
+      </div>
+      <div id="modal-file-size" class="modal-file-size">0KB / 0KB</div>
+      <div class="modal-span">
+        下载中，稍等片刻！安装后，海量影视内容等你来看~
+      </div>
+      <div id="modal-file-btn" class="modal-file-btn" style="display: none" onclick="onClosePopup()">
+        完成
+      </div>
+      <div id="modal-file-btn1" class="modal-file-btn1" onclick="onCancelPopup()">
+        取消
+      </div>
+    </div>
+  </div>
+
+  <noscript>
+    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KDJL4WVP" height="0" width="0"
+      style="display: none; visibility: hidden"></iframe>
+  </noscript>
+
+  <script src="/templates/topVideo/js/crypto-js.min.js"></script>
+  <script src="/templates/topVideo/js/down.js"></script>
+  <script>
+    onLoadWebData();
+    window.onload = function () {
+      loadGoogleGtag();
+      loadFbq();
+      onInitLoad();
+    };
+  </script>
+<script id="lps-selected-videos" type="application/json">[]</script>
+</body>
+
+</html>
