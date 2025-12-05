@@ -1,0 +1,23 @@
+{
+  "image_slots": [
+    {
+      "match_class": "top-video-img",
+      "count": 1
+    },
+    {
+      "match_class": "list-item-img"
+    }
+  ],
+  "text_slots": [
+    {
+      "match_class": "top-video-span",
+      "source": "title",
+      "count": 1
+    },
+    {
+      "match_class": "list-item-span",
+      "source": "title",
+      "start_index": 1
+    }
+  ]
+}

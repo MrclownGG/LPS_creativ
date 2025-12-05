@@ -7,6 +7,7 @@ import mimetypes
 import re
 import shutil
 import zipfile
+from html import escape as html_escape
 from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
@@ -59,6 +60,29 @@ def _get_templates_root() -> Path:
 def _get_ad_images_dir(workflow_id: int) -> Path:
   """工作流广告图上传目录 backend/generated/workflow_ad_images/{workflow_id}"""
   return _get_generated_root() / "workflow_ad_images" / str(workflow_id)
+
+
+_TEMPLATE_CONFIG_CACHE: Dict[str, Optional[dict]] = {}
+
+
+def _get_template_config(html_path: Path) -> Optional[dict]:
+  """????? HTML ?????? template-config.json ??????."""
+  key = str(html_path.resolve())
+  if key in _TEMPLATE_CONFIG_CACHE:
+    return _TEMPLATE_CONFIG_CACHE[key]
+
+  config_data: Optional[dict] = None
+  for name in ("template-config.json", "template_config.json"):
+    config_path = html_path.parent / name
+    if config_path.is_file():
+      try:
+        config_data = json.loads(config_path.read_text(encoding="utf-8"))
+      except json.JSONDecodeError:
+        config_data = None
+      break
+
+  _TEMPLATE_CONFIG_CACHE[key] = config_data
+  return config_data
 
 
 def _copy_template_assets(src_dir: Path, dst_dir: Path, ignore_names: Optional[set[str]] = None) -> None:
@@ -163,27 +187,120 @@ def _inject_selected_videos(
   return html_content
 
 
-def _replace_gallery_images(html_content: str, poster_urls: List[str]) -> str:
+def _replace_gallery_images(
+  html_content: str,
+  poster_urls: List[str],
+  image_slots: Optional[List[dict]] = None,
+) -> str:
   if not poster_urls:
     return html_content
 
+  slots = image_slots or [{"match_class": "list-item-img"}]
+  urls_iter = iter(poster_urls)
+  for slot in slots:
+    class_name = slot.get("match_class")
+    if not class_name:
+      continue
+    limit = slot.get("count") or slot.get("max")
+    html_content, _ = _replace_images_for_class(
+        html_content, class_name, urls_iter, limit
+    )
+
+  return html_content
+
+
+def _replace_images_for_class(
+  html_content: str,
+  class_name: str,
+  url_iter: iter,
+  limit: Optional[int] = None,
+) -> Tuple[str, int]:
+  escaped = re.escape(class_name)
   pattern = re.compile(
-      r'<img\b[^>]*class="[^"]*\blist-item-img\b[^"]*"[^>]*>',
+      rf'<img\b[^>]*class="[^"]*\b{escaped}\b[^"]*"[^>]*>',
       re.IGNORECASE,
   )
-  urls_iter = iter(poster_urls)
+  used = 0
 
   def repl(match: re.Match[str]) -> str:
+    nonlocal used
+    if limit is not None and used >= limit:
+      return match.group(0)
     try:
-      url = next(urls_iter)
+      url = next(url_iter)
     except StopIteration:
       return match.group(0)
+    used += 1
     tag = match.group(0)
     if 'src="' in tag:
       return re.sub(r'src="[^"]*"', f'src="{url}"', tag, count=1)
     return tag.replace("<img", f'<img src="{url}"', 1)
 
-  return pattern.sub(repl, html_content)
+  new_html = pattern.sub(repl, html_content)
+  return new_html, used
+
+
+def _replace_text_slots(
+  html_content: str,
+  selected_payload: List[dict],
+  text_slots: Optional[List[dict]] = None,
+) -> str:
+  if not text_slots or not selected_payload:
+    return html_content
+
+  pointer = 0
+  total = len(selected_payload)
+  for slot in text_slots:
+    class_name = slot.get("match_class")
+    source = slot.get("source")
+    if not class_name or not source:
+      continue
+    start_index = slot.get("start_index")
+    if start_index is None:
+      start_index = pointer
+    if start_index >= total:
+      continue
+    count = slot.get("count") or slot.get("max")
+    if count is None or count <= 0:
+      end_index = total
+    else:
+      end_index = min(total, start_index + count)
+    values = []
+    for idx in range(start_index, end_index):
+      value = selected_payload[idx].get(source, "")
+      values.append("" if value is None else str(value))
+    html_content, applied = _replace_text_for_class(
+        html_content, class_name, values
+    )
+    if slot.get("start_index") is None:
+      pointer = start_index + applied
+  return html_content
+
+
+def _replace_text_for_class(
+  html_content: str, class_name: str, values: List[str]
+) -> Tuple[str, int]:
+  if not values:
+    return html_content, 0
+  escaped = re.escape(class_name)
+  pattern = re.compile(
+      rf'(?P<start><(?P<tag>\w+)(?P<attrs>[^>]*)class="[^"]*\b{escaped}\b[^"]*"[^>]*>)(?P<inner>.*?)(?P<end></(?P=tag)>)',
+      re.IGNORECASE | re.DOTALL,
+  )
+  iterator = iter(values)
+  applied = 0
+
+  def repl(match: re.Match[str]) -> str:
+    nonlocal applied
+    try:
+      value = next(iterator)
+    except StopIteration:
+      return match.group(0)
+    applied += 1
+    return f"{match.group('start')}{html_escape(value)}{match.group('end')}"
+
+  new_html = pattern.sub(repl, html_content)
+  return new_html, applied
 
 
 def _inject_channel_tracking(
@@ -1047,6 +1164,10 @@ def generate_landing_pages(
           data=None,
       )
 
+    template_config = _get_template_config(html_path)
+    image_slots = template_config.get("image_slots") if template_config else None
+    text_slots = template_config.get("text_slots") if template_config else None
+
     base_html = _apply_language(base_html, payload.language)
     base_html = _inject_channel_tracking(
         base_html, channel_external_id, channel_token
@@ -1068,7 +1189,12 @@ def generate_landing_pages(
     poster_urls_online = [
         item.get("poster_url", "").strip() for item in selected_payload_online
     ]
-    online_html = _replace_gallery_images(online_html, poster_urls_online)
+    online_html = _replace_gallery_images(
+        online_html, poster_urls_online, image_slots
+    )
+    online_html = _replace_text_slots(
+        online_html, selected_payload_online, text_slots
+    )
     online_html = _inject_selected_videos(
         online_html, selected_ids, selected_payload_online
     )
@@ -1118,7 +1244,12 @@ def generate_landing_pages(
     poster_urls_offline = [
         item.get("poster_url", "").strip() for item in selected_payload_offline
     ]
-    offline_html = _replace_gallery_images(offline_html, poster_urls_offline)
+    offline_html = _replace_gallery_images(
+        offline_html, poster_urls_offline, image_slots
+    )
+    offline_html = _replace_text_slots(
+        offline_html, selected_payload_offline, text_slots
+    )
     offline_html = _inject_selected_videos(
         offline_html, selected_ids, selected_payload_offline
     )
@@ -1257,6 +1388,10 @@ def preview_landing_page(
         data=None,
     )
 
+  template_config = _get_template_config(html_path)
+  image_slots = template_config.get("image_slots") if template_config else None
+  text_slots = template_config.get("text_slots") if template_config else None
+
   # 计算模板静态资源前缀（/templates/xxx），用于修正相对路径
   static_prefix = _build_static_prefix(template.static_assets_path, templates_root)
 
@@ -1274,7 +1409,12 @@ def preview_landing_page(
       for item in selected_payload
       if item.get("poster_url")
   ]
-  html_content = _replace_gallery_images(html_content, poster_urls_preview)
+  html_content = _replace_gallery_images(
+      html_content, poster_urls_preview, image_slots
+  )
+  html_content = _replace_text_slots(
+      html_content, selected_payload, text_slots
+  )
   html_content = _inject_selected_videos(
       html_content, selected_ids, selected_payload
   )
