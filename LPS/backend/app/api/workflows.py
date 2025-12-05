@@ -487,6 +487,9 @@ HTML_LANG_ATTR = {
   "pt": "pt-BR",
 }
 
+_HTML_COMMENT_PATTERN = re.compile(r"<!--(.*?)-->", re.DOTALL)
+_CN_CHAR_PATTERN = re.compile(r"[\u4e00-\u9fff]")
+
 # 固定文案多语言映射表，key 为模板中的中文原文
 PHRASE_MAP = {
   "免费网站": {
@@ -554,6 +557,18 @@ def _apply_language(
       html_content = html_content.replace(cn_text, target)
 
   return html_content
+
+
+def _remove_cn_comments(html_content: str) -> str:
+  """删除包含中文字符的注释，避免中文配置泄露到生成页。"""
+  if "<!--" not in html_content:
+    return html_content
+
+  def repl(match: re.Match[str]) -> str:
+    inner = match.group(1) or ""
+    return "" if _CN_CHAR_PATTERN.search(inner) else match.group(0)
+
+  return _HTML_COMMENT_PATTERN.sub(repl, html_content)
 
 
 def _build_selected_videos_payload(
@@ -1230,6 +1245,7 @@ def generate_landing_pages(
     online_html = _inject_selected_videos(
         online_html, selected_ids, selected_payload_online
     )
+    online_html = _remove_cn_comments(online_html)
 
     online_output_dir = generated_root / str(workflow_id)
     online_output_dir.mkdir(parents=True, exist_ok=True)
@@ -1285,6 +1301,7 @@ def generate_landing_pages(
     offline_html = _inject_selected_videos(
         offline_html, selected_ids, selected_payload_offline
     )
+    offline_html = _remove_cn_comments(offline_html)
 
     offline_html_path = offline_root / html_path.name
     try:
@@ -1455,6 +1472,7 @@ def preview_landing_page(
   html_content = _inject_selected_videos(
       html_content, selected_ids, selected_payload
   )
+  html_content = _remove_cn_comments(html_content)
 
   # 写入预览目录：generated/preview/{template_id}_{uuid}.html
   generated_root = _get_generated_root()
