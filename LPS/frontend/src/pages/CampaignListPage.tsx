@@ -30,7 +30,6 @@ import {
   type Campaign,
   type CampaignDetail,
   type CampaignLandingPageSource,
-  type CampaignDeployedLandingPage,
 } from '../api/campaigns'
 import { useWorkflows, type Workflow, type WorkflowStatus } from '../api/workflows'
 import {
@@ -274,15 +273,14 @@ export const CampaignListPage: React.FC = () => {
     { title: '计划名称', dataIndex: 'name', ellipsis: true },
     {
       title: '渠道',
-      dataIndex: 'channels',
-      render: (channels: string[]) =>
-        channels?.length ? channels.join(' / ') : '-',
-    },
-    {
-      title: '地区',
-      dataIndex: 'regions',
-      render: (regions: string[]) =>
-        regions?.length ? regions.join(' / ') : '-',
+      dataIndex: 'bound_channel_name',
+      width: 220,
+      render: (_: unknown, record) =>
+        record.bound_channel_name ? (
+          <Text>{record.bound_channel_name}</Text>
+        ) : (
+          <Text type="secondary">未绑定</Text>
+        ),
     },
     {
       title: '状态',
@@ -324,9 +322,6 @@ export const CampaignListPage: React.FC = () => {
             onClick={() => handleOpenSelectWorkflow(record)}
           >
             关联 ready 批次
-          </Button>
-          <Button type="link" size="small" disabled>
-            下载（待实现）
           </Button>
         </>
       ),
@@ -383,46 +378,6 @@ export const CampaignListPage: React.FC = () => {
     },
   ]
 
-  const deployedLandingPageColumns: ColumnsType<CampaignDeployedLandingPage> = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '落地页 ID', dataIndex: 'landing_page_id', width: 110 },
-    { title: '工作流', dataIndex: 'workflow_id', width: 100 },
-    { title: '模板', dataIndex: 'template_id', width: 100 },
-    {
-      title: '预览链接',
-      dataIndex: 'page_url',
-      render: (url: string) =>
-        url ? (
-          <a href={`${backendBaseUrl}${url}`} target="_blank" rel="noreferrer">
-            打开
-          </a>
-        ) : (
-          '-'
-        ),
-    },
-    {
-      title: '离线包',
-      dataIndex: 'package_url',
-      render: (url?: string) =>
-        url ? (
-          <a href={`${backendBaseUrl}${url}`} target="_blank" rel="noreferrer">
-            下载
-          </a>
-        ) : (
-          '-'
-        ),
-    },
-    {
-      title: '渠道 c_id',
-      dataIndex: 'channel_external_id',
-      width: 160,
-    },
-    {
-      title: '生成时间',
-      dataIndex: 'generated_at',
-      width: 200,
-    },
-  ]
 
   return (
     <Card>
@@ -726,13 +681,69 @@ export const CampaignListPage: React.FC = () => {
             <Title level={5} style={{ marginTop: 16 }}>
               已生成投放落地页
             </Title>
-            <Table<CampaignDeployedLandingPage>
-              rowKey="id"
-              size="small"
-              pagination={false}
-              columns={deployedLandingPageColumns}
-              dataSource={detailData.deployed_pages}
-            />
+            {detailData.deployed_pages.length > 0 ? (
+              <div className="campaign-detail-deployed-grid">
+                {detailData.deployed_pages.map((page) => (
+                  <Card
+                    key={page.id}
+                    size="small"
+                    className="campaign-detail-deployed-card"
+                  >
+                    <div className="campaign-detail-deployed-info">
+                      <div>
+                        <Text strong>落地页 #{page.landing_page_id}</Text>
+                        <Text type="secondary" style={{ marginLeft: 8 }}>
+                          Workflow #{page.workflow_id} · 模板 {page.template_id}
+                        </Text>
+                      </div>
+                      <div className="campaign-detail-deployed-meta">
+                        <span>生成时间：{page.generated_at || '-'}</span>
+                        {page.channel_external_id && (
+                          <span>渠道 c_id：{page.channel_external_id}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="campaign-detail-deployed-actions">
+                      <Button
+                        type="primary"
+                        ghost
+                        size="small"
+                        href={
+                          page.page_url
+                            ? `${backendBaseUrl}${page.page_url}`
+                            : undefined
+                        }
+                        target={page.page_url ? '_blank' : undefined}
+                        rel={page.page_url ? 'noreferrer' : undefined}
+                        disabled={!page.page_url}
+                      >
+                        投放预览
+                      </Button>
+                      <Button
+                        size="small"
+                        href={
+                          page.package_url
+                            ? `${backendBaseUrl}${page.package_url}`
+                            : undefined
+                        }
+                        target={page.package_url ? '_blank' : undefined}
+                        rel={page.package_url ? 'noreferrer' : undefined}
+                        disabled={!page.package_url}
+                      >
+                        下载离线包
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Alert
+                type="info"
+                showIcon
+                message="暂未生成投放落地页"
+                style={{ marginTop: 8 }}
+              />
+            )}
           </>
         ) : (
           <Typography.Paragraph>暂无数据</Typography.Paragraph>

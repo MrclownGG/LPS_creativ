@@ -11,6 +11,7 @@ export interface Campaign {
   created_by: string
   created_at: string
   workflow_count: number
+  bound_channel_name?: string | null
 }
 
 export interface CampaignListData {

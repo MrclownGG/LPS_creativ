@@ -151,6 +151,7 @@ class CampaignItem(BaseModel):
   created_by: str
   created_at: str
   workflow_count: int = 0
+  bound_channel_name: Optional[str] = None
 
 
 class CampaignListData(BaseModel):
@@ -353,8 +354,24 @@ def list_campaigns(
             .group_by(CampaignWorkflowMap.campaign_id)
         ).all()
     )
+    binding_channel_ids = {}
+    for c in campaigns:
+      binding = _get_campaign_channel_binding_config(c)
+      channel_id = binding.get("channel_id") if binding else None
+      if channel_id:
+        binding_channel_ids[c.id] = int(channel_id)
+    channel_lookup = {}
+    if binding_channel_ids:
+      rows = db.execute(
+          select(CampaignChannelDict.id, CampaignChannelDict.name).where(
+              CampaignChannelDict.id.in_(set(binding_channel_ids.values()))
+          )
+      ).all()
+      channel_lookup = {row.id: row.name for row in rows}
   else:
     counts = {}
+    binding_channel_ids = {}
+    channel_lookup = {}
 
   items = [
       CampaignItem(
@@ -366,6 +383,11 @@ def list_campaigns(
           created_by=c.created_by,
           created_at=c.created_at.isoformat(),
           workflow_count=int(counts.get(c.id, 0)),
+          bound_channel_name=(
+              channel_lookup.get(binding_channel_ids.get(c.id))
+              if binding_channel_ids.get(c.id)
+              else None
+          ),
       )
       for c in campaigns
   ]
@@ -408,6 +430,7 @@ def create_campaign(
       created_by=campaign.created_by,
       created_at=campaign.created_at.isoformat(),
       workflow_count=0,
+      bound_channel_name=None,
   )
 
   return CampaignCreateResponse(code=0, message="ok", data=item)
