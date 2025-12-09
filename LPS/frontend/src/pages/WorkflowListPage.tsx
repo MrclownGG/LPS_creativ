@@ -200,6 +200,17 @@ export const WorkflowListPage: React.FC = () => {
       width: 120,
     },
     {
+      title: '最新落地页ID',
+      dataIndex: 'latest_landing_page_id',
+      width: 140,
+      render: (value?: number | null) =>
+        value ? (
+          <span>{value}</span>
+        ) : (
+          <span style={{ color: '#999' }}>无</span>
+        ),
+    },
+    {
       title: '创建人',
       dataIndex: 'created_by',
       width: 120,

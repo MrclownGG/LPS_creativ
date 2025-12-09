@@ -12,6 +12,7 @@ export interface Campaign {
   created_at: string
   workflow_count: number
   bound_channel_name?: string | null
+  selected_landing_page_id?: number | null
 }
 
 export interface CampaignListData {

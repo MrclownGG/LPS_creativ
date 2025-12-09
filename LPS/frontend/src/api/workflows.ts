@@ -24,6 +24,7 @@ export interface Workflow {
   campaign_names: string[]
   languages?: LandingPageLanguage[]
   channel_names?: string[]
+  latest_landing_page_id?: number | null
 }
 
 export interface WorkflowListData {

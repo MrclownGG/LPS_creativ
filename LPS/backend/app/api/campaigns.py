@@ -152,6 +152,7 @@ class CampaignItem(BaseModel):
   created_at: str
   workflow_count: int = 0
   bound_channel_name: Optional[str] = None
+  selected_landing_page_id: Optional[int] = None
 
 
 class CampaignListData(BaseModel):
@@ -354,11 +355,21 @@ def list_campaigns(
         ).all()
     )
     binding_channel_ids = {}
+    selected_lp_ids = {}
     for c in campaigns:
       binding = _get_campaign_channel_binding_config(c)
       channel_id = binding.get("channel_id") if binding else None
       if channel_id:
         binding_channel_ids[c.id] = int(channel_id)
+      config = c.config or {}
+      selected_val = None
+      if isinstance(config, dict):
+        selected_val = config.get("selected_landing_page_id")
+      if selected_val is not None:
+        try:
+          selected_lp_ids[c.id] = int(selected_val)
+        except (TypeError, ValueError):
+          selected_lp_ids[c.id] = None
     channel_lookup = {}
     if binding_channel_ids:
       rows = db.execute(
@@ -371,6 +382,7 @@ def list_campaigns(
     counts = {}
     binding_channel_ids = {}
     channel_lookup = {}
+    selected_lp_ids = {}
 
   items = [
       CampaignItem(
@@ -387,6 +399,7 @@ def list_campaigns(
               if binding_channel_ids.get(c.id)
               else None
           ),
+          selected_landing_page_id=selected_lp_ids.get(c.id),
       )
       for c in campaigns
   ]
@@ -430,6 +443,7 @@ def create_campaign(
       created_at=campaign.created_at.isoformat(),
       workflow_count=0,
       bound_channel_name=None,
+      selected_landing_page_id=None,
   )
 
   return CampaignCreateResponse(code=0, message="ok", data=item)
@@ -824,18 +838,6 @@ def deploy_campaign_landing_page(
     return CampaignLandingPageDeployResponse(
         code=1,
         message="请先在投放计划中绑定渠道后再生成落地页",
-        data=None,
-    )
-
-  relation_exists = db.execute(
-      select(CampaignWorkflowMap)
-      .where(CampaignWorkflowMap.campaign_id == campaign_id)
-      .where(CampaignWorkflowMap.workflow_id == landing_page.workflow_id)
-  ).first()
-  if not relation_exists:
-    return CampaignLandingPageDeployResponse(
-        code=1,
-        message="该落地页所属工作流尚未与当前投放计划关联",
         data=None,
     )
 

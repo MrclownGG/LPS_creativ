@@ -11,7 +11,6 @@ import {
   Select,
   Space,
   Tag,
-  message,
   App as AntdApp,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -41,7 +40,7 @@ const { Option } = Select
 
 export const CampaignListPage: React.FC = () => {
   const queryClient = useQueryClient()
-  const { modal } = AntdApp.useApp()
+  const { modal, message } = AntdApp.useApp()
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -193,15 +192,24 @@ export const CampaignListPage: React.FC = () => {
 
   const handleGenerateSelectedLandingPage = async () => {
     if (!selectedCampaign) {
-      message.warning('请先选择投放计划')
+      modal.warning({
+        title: '缺少投放计划',
+        content: '请先选择一个投放计划后再生成投放版本。',
+      })
       return
     }
     if (!detailData?.channel_binding) {
-      message.warning('请先为投放计划保存渠道配置')
+      modal.warning({
+        title: '缺少渠道配置',
+        content: '请在上方先保存渠道 + token，再生成投放版本。',
+      })
       return
     }
     if (!selectedLandingPageId) {
-      message.warning('请先关联一个落地页')
+      modal.warning({
+        title: '缺少落地页',
+        content: '请先在下方表格中选择并保存落地页，再生成投放版本。',
+      })
       return
     }
     setGeneratingLandingPage(true)
@@ -210,7 +218,10 @@ export const CampaignListPage: React.FC = () => {
         selectedCampaign.id,
         selectedLandingPageId,
       )
-      message.success('投放版本生成成功')
+      modal.success({
+        title: '投放版本生成成功',
+        content: '已根据当前落地页生成投放版，下面的列表可以查看链接与离线包。',
+      })
       const detail = await getCampaignDetail(selectedCampaign.id)
       setDetailData(detail)
       setSelectedLandingPageId(detail.selected_landing_page_id ?? null)
@@ -279,6 +290,13 @@ export const CampaignListPage: React.FC = () => {
         ) : (
           <Text type="secondary">未绑定</Text>
         ),
+    },
+    {
+      title: '落地页ID',
+      dataIndex: 'selected_landing_page_id',
+      width: 140,
+      render: (value: number | null | undefined) =>
+        value ? <Text>{value}</Text> : <Text type="secondary">无</Text>,
     },
     {
       title: '状态',

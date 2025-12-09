@@ -652,6 +652,7 @@ class WorkflowItem(BaseModel):
   campaign_names: List[str] = Field(default_factory=list)
   languages: List[str] = Field(default_factory=list)
   channel_names: List[str] = Field(default_factory=list)
+  latest_landing_page_id: Optional[int] = None
 
 
 class WorkflowListData(BaseModel):
@@ -832,6 +833,13 @@ def list_workflows(
             .group_by(LandingPage.workflow_id)
         ).all()
     )
+    latest_lp_ids = dict(
+        db.execute(
+            select(LandingPage.workflow_id, func.max(LandingPage.id))
+            .where(LandingPage.workflow_id.in_(wf_ids))
+            .group_by(LandingPage.workflow_id)
+        ).all()
+    )
     # 汇总每个 workflow 下落地页的语言（去重）
     lp_lang_rows = db.execute(
         select(LandingPage.workflow_id, LandingPage.language)
@@ -892,6 +900,7 @@ def list_workflows(
     campaign_names_map = {}
     wf_languages = {}
     wf_channel_names = {}
+    latest_lp_ids = {}
 
   items = [
       WorkflowItem(
@@ -906,6 +915,11 @@ def list_workflows(
           campaign_names=campaign_names_map.get(w.id, []),
           languages=wf_languages.get(w.id, []),
           channel_names=wf_channel_names.get(w.id, []),
+          latest_landing_page_id=(
+              int(latest_lp_ids.get(w.id))
+              if latest_lp_ids.get(w.id) is not None
+              else None
+          ),
       )
       for w in workflows
   ]
@@ -947,6 +961,7 @@ def create_workflow(
       campaign_count=0,
       channel_names=[],
       languages=[],
+      latest_landing_page_id=None,
   )
 
   return WorkflowCreateResponse(code=0, message="ok", data=item)
