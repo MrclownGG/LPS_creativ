@@ -19,8 +19,6 @@ import { apiClient } from '../api/client'
 import {
   useCampaigns,
   useCreateCampaignMutation,
-  createCampaignChannel,
-  createCampaignRegion,
   getCampaignDetail,
   bindCampaignChannel,
   bindCampaignLandingPage,
@@ -49,10 +47,6 @@ export const CampaignListPage: React.FC = () => {
   )
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [isCreateChannelModalOpen, setIsCreateChannelModalOpen] =
-    useState(false)
-  const [isCreateRegionModalOpen, setIsCreateRegionModalOpen] =
-    useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
     null,
@@ -380,12 +374,6 @@ export const CampaignListPage: React.FC = () => {
         <Button type="primary" onClick={handleOpenCreateModal}>
           新建投放计划
         </Button>
-        <Button onClick={() => setIsCreateChannelModalOpen(true)}>
-          新建投放渠道
-        </Button>
-        <Button onClick={() => setIsCreateRegionModalOpen(true)}>
-          新建投放地区
-        </Button>
       </div>
 
       <Table<Campaign>
@@ -424,38 +412,6 @@ export const CampaignListPage: React.FC = () => {
       </Modal>
 
       <Modal
-        title="新建投放渠道"
-        open={isCreateChannelModalOpen}
-        onCancel={() => setIsCreateChannelModalOpen(false)}
-        footer={null}
-      >
-        <ChannelForm
-          onSuccess={async () => {
-            setIsCreateChannelModalOpen(false)
-            await queryClient.invalidateQueries({
-              queryKey: ['campaign-channels'],
-            })
-          }}
-        />
-      </Modal>
-
-      <Modal
-        title="新建投放地区"
-        open={isCreateRegionModalOpen}
-        onCancel={() => setIsCreateRegionModalOpen(false)}
-        footer={null}
-      >
-        <RegionForm
-          onSuccess={async () => {
-            setIsCreateRegionModalOpen(false)
-            await queryClient.invalidateQueries({
-              queryKey: ['campaign-regions'],
-            })
-          }}
-        />
-      </Modal>
-
-      <Modal
         title={
           detailData ? `投放计划详情：${detailData.name}` : '投放计划详情'
         }
@@ -478,12 +434,6 @@ export const CampaignListPage: React.FC = () => {
             <Typography.Paragraph>
               ID：{detailData.id} ｜ 状态：
               <Tag color="blue">{detailData.status || 'active'}</Tag>
-            </Typography.Paragraph>
-            <Typography.Paragraph>
-              渠道：{detailData.channels.join(' / ') || '-'}
-            </Typography.Paragraph>
-            <Typography.Paragraph>
-              地区：{detailData.regions.join(' / ') || '-'}
             </Typography.Paragraph>
             <Typography.Paragraph>
               创建人：{detailData.created_by} ｜ 创建时间：
@@ -748,102 +698,3 @@ export const CampaignListPage: React.FC = () => {
   )
 }
 
-interface SimpleFormProps {
-  onSuccess: () => void | Promise<void>
-}
-
-const ChannelForm: React.FC<SimpleFormProps> = ({ onSuccess }) => {
-  const [form] = Form.useForm()
-  const [saving, setSaving] = useState(false)
-
-  const handleFinish = async (values: { name: string; code: string }) => {
-    setSaving(true)
-    try {
-      await createCampaignChannel({
-        name: values.name.trim(),
-        code: values.code.trim(),
-      })
-      message.success('投放渠道创建成功')
-      form.resetFields()
-      await onSuccess()
-    } catch (error) {
-      const msg =
-        error instanceof Error ? error.message : '创建投放渠道失败，请稍后重试'
-      message.error(msg)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Form form={form} layout="vertical" onFinish={handleFinish}>
-      <Form.Item
-        label="渠道名称"
-        name="name"
-        rules={[{ required: true, message: '请输入渠道名称' }]}
-      >
-        <Input placeholder="例如：FB 主号" />
-      </Form.Item>
-      <Form.Item
-        label="渠道编码"
-        name="code"
-        rules={[{ required: true, message: '请输入渠道编码' }]}
-      >
-        <Input placeholder="例如：FB:28" />
-      </Form.Item>
-      <Form.Item>
-        <Button type="primary" loading={saving} onClick={() => form.submit()}>
-          保存
-        </Button>
-      </Form.Item>
-    </Form>
-  )
-}
-
-const RegionForm: React.FC<SimpleFormProps> = ({ onSuccess }) => {
-  const [form] = Form.useForm()
-  const [saving, setSaving] = useState(false)
-
-  const handleFinish = async (values: { name: string; code: string }) => {
-    setSaving(true)
-    try {
-      await createCampaignRegion({
-        name: values.name.trim(),
-        code: values.code.trim(),
-      })
-      message.success('投放地区创建成功')
-      form.resetFields()
-      await onSuccess()
-    } catch (error) {
-      const msg =
-        error instanceof Error ? error.message : '创建投放地区失败，请稍后重试'
-      message.error(msg)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Form form={form} layout="vertical" onFinish={handleFinish}>
-      <Form.Item
-        label="地区名称"
-        name="name"
-        rules={[{ required: true, message: '请输入地区名称' }]}
-      >
-        <Input placeholder="例如：北美区" />
-      </Form.Item>
-      <Form.Item
-        label="地区编码"
-        name="code"
-        rules={[{ required: true, message: '请输入地区编码' }]}
-      >
-        <Input placeholder="例如：US 或 US-CA" />
-      </Form.Item>
-      <Form.Item>
-        <Button type="primary" loading={saving} onClick={() => form.submit()}>
-          保存
-        </Button>
-      </Form.Item>
-    </Form>
-  )
-}
