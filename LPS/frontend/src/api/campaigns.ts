@@ -33,8 +33,6 @@ export interface CampaignListParams {
 
 export interface CampaignCreateInput {
   name: string
-  channels: string[]
-  regions: string[]
   created_by?: string
 }
 
@@ -92,6 +90,7 @@ export interface CampaignDetail {
   channel_binding?: CampaignChannelBinding | null
   landing_pages: CampaignLandingPageSource[]
   deployed_pages: CampaignDeployedLandingPage[]
+  selected_landing_page_id?: number | null
 }
 
 interface CampaignDetailResponse {
@@ -120,6 +119,12 @@ interface CampaignLandingPageDeployResponse {
   code: number
   message: string
   data: CampaignDeployedLandingPage | null
+}
+
+interface CampaignLandingPageBindingResponse {
+  code: number
+  message: string
+  data: { landing_page_id: number } | Record<string, never>
 }
 
 export interface CampaignChannel {
@@ -275,6 +280,20 @@ export const bindCampaignChannel = async (
   }
 
   return res.data.data
+}
+
+export const bindCampaignLandingPage = async (
+  campaignId: number,
+  landingPageId: number,
+): Promise<void> => {
+  const res = await apiClient.post<CampaignLandingPageBindingResponse>(
+    `/campaigns/${campaignId}/landing-page-binding`,
+    { landing_page_id: landingPageId },
+  )
+
+  if (res.data.code !== 0) {
+    throw new Error(res.data.message || '关联落地页失败')
+  }
 }
 
 export const deployCampaignLandingPage = async (

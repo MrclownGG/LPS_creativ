@@ -167,14 +167,6 @@ class CampaignListResponse(BaseModel):
 
 class CampaignCreateRequest(BaseModel):
   name: str = Field(..., description="Campaign name")
-  channels: List[str] = Field(
-      ...,
-      description="Channel codes list, e.g. ['FB', 'IG']",
-  )
-  regions: List[str] = Field(
-      ...,
-      description="Region codes list, e.g. ['US', 'BR']",
-  )
   created_by: Optional[str] = Field(
       default="system",
       description="Creator identifier (username or employee id)",
@@ -237,6 +229,7 @@ class CampaignDetailData(BaseModel):
   channel_binding: Optional[CampaignChannelBindingItem] = None
   landing_pages: List[CampaignLandingPageSource] = Field(default_factory=list)
   deployed_pages: List[CampaignDeployedLandingPageItem] = Field(default_factory=list)
+  selected_landing_page_id: Optional[int] = None
 
 
 class CampaignDetailResponse(BaseModel):
@@ -287,6 +280,12 @@ class CampaignChannelBindingResponse(BaseModel):
   code: int
   message: str
   data: Optional[CampaignChannelBindingItem] = None
+
+
+class CampaignLandingPageBindingRequest(BaseModel):
+  landing_page_id: int = Field(
+      ..., description="landing_page.id，投放计划只能单选一个落地页"
+  )
 
 
 class CampaignLandingPageDeployResponse(BaseModel):
@@ -411,8 +410,8 @@ def create_campaign(
 ) -> CampaignCreateResponse:
   campaign = Campaign(
       name=payload.name,
-      channels=payload.channels,
-      regions=payload.regions,
+      channels=[],
+      regions=[],
       status="active",
       created_by=(payload.created_by or "system").strip() or "system",
   )
@@ -461,9 +460,10 @@ def get_campaign_detail(
             created_at="",
             workflows=[],
             channel_binding=None,
-            landing_pages=[],
-            deployed_pages=[],
-        ),
+          landing_pages=[],
+          deployed_pages=[],
+          selected_landing_page_id=None,
+      ),
     )
 
   wf_rows: List[tuple[int, Optional[str], Optional[str]]] = db.execute(
@@ -486,6 +486,18 @@ def get_campaign_detail(
   ]
   workflow_ids = [wid for wid, _, _ in wf_rows]
 
+  config = campaign.config or {}
+  selected_landing_page_id: Optional[int] = None
+  if isinstance(config, dict):
+    selected_value = config.get("selected_landing_page_id")
+    if isinstance(selected_value, int):
+      selected_landing_page_id = selected_value
+    elif isinstance(selected_value, str):
+      try:
+        selected_landing_page_id = int(selected_value)
+      except ValueError:
+        selected_landing_page_id = None
+
   binding_cfg = _get_campaign_channel_binding_config(campaign)
   binding_data: Optional[CampaignChannelBindingItem] = None
 
@@ -502,26 +514,25 @@ def get_campaign_detail(
       )
 
   landing_pages: List[CampaignLandingPageSource] = []
-  if workflow_ids:
-    lp_rows: List[LandingPage] = (
-        db.execute(
-            select(LandingPage)
-            .where(LandingPage.workflow_id.in_(workflow_ids))
-            .order_by(LandingPage.id.desc())
-        )
-        .scalars()
-        .all()
-    )
-    landing_pages = [
-        CampaignLandingPageSource(
-            id=lp.id,
-            workflow_id=lp.workflow_id,
-            template_id=lp.template_id,
-            generated_page_url=lp.generated_page_url,
-            language=lp.language,
-        )
-        for lp in lp_rows
-    ]
+  lp_rows: List[LandingPage] = (
+      db.execute(
+          select(LandingPage)
+          .order_by(LandingPage.id.desc())
+          .limit(200)
+      )
+      .scalars()
+      .all()
+  )
+  landing_pages = [
+      CampaignLandingPageSource(
+          id=lp.id,
+          workflow_id=lp.workflow_id,
+          template_id=lp.template_id,
+          generated_page_url=lp.generated_page_url,
+          language=lp.language,
+      )
+      for lp in lp_rows
+  ]
 
   deployed_pages_rows = db.execute(
       select(CampaignLandingPage, LandingPage)
@@ -559,6 +570,7 @@ def get_campaign_detail(
       channel_binding=binding_data,
       landing_pages=landing_pages,
       deployed_pages=deployed_pages,
+      selected_landing_page_id=selected_landing_page_id,
   )
 
   return CampaignDetailResponse(code=0, message="ok", data=data)
@@ -624,6 +636,45 @@ def bind_campaign_channel(
       code=0,
       message="ok",
       data=binding_item,
+  )
+
+
+@router.post(
+  "/campaigns/{campaign_id}/landing-page-binding",
+  response_model=SimpleResponse,
+  summary="为投放计划选择落地页",
+  description="为投放计划单选一个落地页，保存到 campaign.config 中。",
+)
+def bind_campaign_landing_page(
+  campaign_id: int,
+  payload: CampaignLandingPageBindingRequest,
+  db: Session = Depends(get_db),
+) -> SimpleResponse:
+  campaign: Optional[Campaign] = db.get(Campaign, campaign_id)
+  if not campaign:
+    return SimpleResponse(code=1, message=f"campaign {campaign_id} not found", data={})
+
+  landing_page: Optional[LandingPage] = db.get(
+      LandingPage, payload.landing_page_id
+  )
+  if not landing_page:
+    return SimpleResponse(
+        code=1,
+        message=f"landing page {payload.landing_page_id} not found",
+        data={},
+    )
+
+  config = dict(campaign.config or {})
+  config["selected_landing_page_id"] = int(landing_page.id)
+  campaign.config = config
+
+  db.add(campaign)
+  db.commit()
+
+  return SimpleResponse(
+      code=0,
+      message="ok",
+      data={"landing_page_id": landing_page.id},
   )
 
 

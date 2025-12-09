@@ -12,6 +12,7 @@ import {
   Space,
   Tag,
   message,
+  App as AntdApp,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useQueryClient } from '@tanstack/react-query'
@@ -19,19 +20,16 @@ import { apiClient } from '../api/client'
 import {
   useCampaigns,
   useCreateCampaignMutation,
-  useMapCampaignWorkflowsMutation,
-  useCampaignChannels,
-  useCampaignRegions,
   createCampaignChannel,
   createCampaignRegion,
   getCampaignDetail,
   bindCampaignChannel,
+  bindCampaignLandingPage,
   deployCampaignLandingPage,
   type Campaign,
   type CampaignDetail,
   type CampaignLandingPageSource,
 } from '../api/campaigns'
-import { useWorkflows, type Workflow, type WorkflowStatus } from '../api/workflows'
 import {
   useChannels,
   fetchChannelToken,
@@ -41,26 +39,9 @@ import {
 const { Title, Paragraph, Text } = Typography
 const { Option } = Select
 
-const WORKFLOW_STATUS_LABEL: Record<WorkflowStatus, string> = {
-  draft: '草稿',
-  generating: '生成中',
-  pending_ad: '广告待上传',
-  ready: '准备完成（待投流）',
-  in_use: '已投流',
-  archived: '已归档',
-}
-
-const WORKFLOW_STATUS_COLOR: Record<WorkflowStatus, string> = {
-  draft: 'default',
-  generating: 'processing',
-  pending_ad: 'warning',
-  ready: 'success',
-  in_use: 'success',
-  archived: 'default',
-}
-
 export const CampaignListPage: React.FC = () => {
   const queryClient = useQueryClient()
+  const { modal } = AntdApp.useApp()
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -73,13 +54,13 @@ export const CampaignListPage: React.FC = () => {
     useState(false)
   const [isCreateRegionModalOpen, setIsCreateRegionModalOpen] =
     useState(false)
-  const [isSelectWorkflowModalOpen, setIsSelectWorkflowModalOpen] =
-    useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
     null,
   )
-  const [selectedWorkflowIds, setSelectedWorkflowIds] = useState<number[]>([])
+  const [selectedLandingPageId, setSelectedLandingPageId] = useState<
+    number | null
+  >(null)
   const [detailData, setDetailData] = useState<CampaignDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [bindingChannelId, setBindingChannelId] = useState<number | undefined>(
@@ -93,9 +74,7 @@ export const CampaignListPage: React.FC = () => {
   } | null>(null)
   const [bindingLoading, setBindingLoading] = useState(false)
   const [tokenFetching, setTokenFetching] = useState(false)
-  const [deployingLandingPageId, setDeployingLandingPageId] = useState<
-    number | null
-  >(null)
+  const [generatingLandingPage, setGeneratingLandingPage] = useState(false)
 
   const [form] = Form.useForm()
 
@@ -105,19 +84,8 @@ export const CampaignListPage: React.FC = () => {
     page_size: pageSize,
   })
 
-  const {
-    data: readyWorkflows,
-    isLoading: readyWorkflowsLoading,
-  } = useWorkflows({
-    page: 1,
-    page_size: 100,
-  })
-
   const createMutation = useCreateCampaignMutation()
-  const mapWorkflowsMutation = useMapCampaignWorkflowsMutation()
 
-  const { data: channelDict } = useCampaignChannels()
-  const { data: regionDict } = useCampaignRegions()
   const {
     data: channelList,
     isLoading: channelListLoading,
@@ -130,7 +98,10 @@ export const CampaignListPage: React.FC = () => {
   )
   const channelOptions = channelList?.items ?? []
   const channelSelectLoading = channelListLoading || channelListFetching
-
+  const selectedLandingPage = useMemo(() => {
+    if (!detailData || !selectedLandingPageId) return null
+    return detailData.landing_pages.find((lp) => lp.id === selectedLandingPageId) ?? null
+  }, [detailData, selectedLandingPageId])
   const handleOpenCreateModal = () => {
     form.resetFields()
     setIsCreateModalOpen(true)
@@ -184,6 +155,7 @@ export const CampaignListPage: React.FC = () => {
       const detail = await getCampaignDetail(selectedCampaign.id)
       setDetailData(detail)
       setBindingChannelId(detail.channel_binding?.channel_id ?? bindingChannelId)
+      setSelectedLandingPageId(detail.selected_landing_page_id ?? null)
     } catch (error) {
       const msg =
         error instanceof Error ? error.message : '保存渠道配置失败，请稍后重试'
@@ -193,7 +165,33 @@ export const CampaignListPage: React.FC = () => {
     }
   }
 
-  const handleDeployLandingPage = async (landingPageId: number) => {
+  const handleSaveLandingPageBinding = async () => {
+    if (!selectedCampaign) {
+      message.warning('请先选择投放计划')
+      return
+    }
+    if (!selectedLandingPageId) {
+      message.warning('请选择一个落地页')
+      return
+    }
+    try {
+      await bindCampaignLandingPage(selectedCampaign.id, selectedLandingPageId)
+      message.success('关联落地页成功')
+      modal.success({
+        title: '保存成功',
+        content: '已将当前落地页绑定到该投放计划，可以直接生成投放版。',
+      })
+      const detail = await getCampaignDetail(selectedCampaign.id)
+      setDetailData(detail)
+      setSelectedLandingPageId(detail.selected_landing_page_id ?? selectedLandingPageId)
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : '关联落地页失败，请稍后重试'
+      message.error(msg)
+    }
+  }
+
+  const handleGenerateSelectedLandingPage = async () => {
     if (!selectedCampaign) {
       message.warning('请先选择投放计划')
       return
@@ -202,12 +200,20 @@ export const CampaignListPage: React.FC = () => {
       message.warning('请先为投放计划保存渠道配置')
       return
     }
-    setDeployingLandingPageId(landingPageId)
+    if (!selectedLandingPageId) {
+      message.warning('请先关联一个落地页')
+      return
+    }
+    setGeneratingLandingPage(true)
     try {
-      await deployCampaignLandingPage(selectedCampaign.id, landingPageId)
+      await deployCampaignLandingPage(
+        selectedCampaign.id,
+        selectedLandingPageId,
+      )
       message.success('投放版本生成成功')
       const detail = await getCampaignDetail(selectedCampaign.id)
       setDetailData(detail)
+      setSelectedLandingPageId(detail.selected_landing_page_id ?? null)
     } catch (error) {
       const msg =
         error instanceof Error
@@ -215,17 +221,13 @@ export const CampaignListPage: React.FC = () => {
           : '生成投放落地页失败，请稍后重试'
       message.error(msg)
     } finally {
-      setDeployingLandingPageId(null)
+      setGeneratingLandingPage(false)
     }
   }
 
   const handleCreateFinish = (values: any) => {
     createMutation.mutate(
-      {
-        name: values.name,
-        channels: values.channels || [],
-        regions: values.regions || [],
-      },
+      { name: values.name },
       {
         onSuccess: () => {
           message.success('投放计划创建成功')
@@ -241,12 +243,6 @@ export const CampaignListPage: React.FC = () => {
     )
   }
 
-  const handleOpenSelectWorkflow = (record: Campaign) => {
-    setSelectedCampaign(record)
-    setSelectedWorkflowIds([])
-    setIsSelectWorkflowModalOpen(true)
-  }
-
   const handleOpenDetailModal = async (record: Campaign) => {
     setSelectedCampaign(record)
     setDetailLoading(true)
@@ -254,10 +250,12 @@ export const CampaignListPage: React.FC = () => {
     setBindingTokenInfo(null)
     setBindingTokenAlert(null)
     setBindingChannelId(undefined)
+    setSelectedLandingPageId(null)
     try {
       const detail = await getCampaignDetail(record.id)
       setDetailData(detail)
       setBindingChannelId(detail.channel_binding?.channel_id ?? undefined)
+      setSelectedLandingPageId(detail.selected_landing_page_id ?? null)
     } catch (error) {
       const msg =
         error instanceof Error ? error.message : '获取投放计划详情失败，请稍后重试'
@@ -306,7 +304,7 @@ export const CampaignListPage: React.FC = () => {
     {
       title: '操作',
       dataIndex: 'actions',
-      width: 260,
+      width: 160,
       render: (_, record) => (
         <>
           <Button
@@ -316,40 +314,18 @@ export const CampaignListPage: React.FC = () => {
           >
             查看详情
           </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleOpenSelectWorkflow(record)}
-          >
-            关联 ready 批次
-          </Button>
         </>
       ),
     },
   ]
 
-  const workflowColumns: ColumnsType<Workflow> = [
-    { title: 'ID', dataIndex: 'id', width: 80 },
-    { title: '批次名称', dataIndex: 'name', ellipsis: true },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 120,
-      render: (status: WorkflowStatus) => (
-        <Tag color={WORKFLOW_STATUS_COLOR[status]}>
-          {WORKFLOW_STATUS_LABEL[status] ?? status}
-        </Tag>
-      ),
-    },
-  ]
-
-  const landingPageColumns: ColumnsType<CampaignLandingPageSource> = [
+  const landingSelectionColumns: ColumnsType<CampaignLandingPageSource> = [
     { title: 'ID', dataIndex: 'id', width: 80 },
     { title: '工作流', dataIndex: 'workflow_id', width: 100 },
     { title: '模板', dataIndex: 'template_id', width: 100 },
     { title: '语言', dataIndex: 'language', width: 120 },
     {
-      title: '生成链接',
+      title: '预览链接',
       dataIndex: 'generated_page_url',
       render: (url: string) =>
         url ? (
@@ -359,22 +335,6 @@ export const CampaignListPage: React.FC = () => {
         ) : (
           '-'
         ),
-    },
-    {
-      title: '操作',
-      dataIndex: 'actions',
-      width: 160,
-      render: (_, record) => (
-        <Button
-          type="link"
-          size="small"
-          onClick={() => handleDeployLandingPage(record.id)}
-          loading={deployingLandingPageId === record.id}
-          disabled={!detailData?.channel_binding}
-        >
-          生成投放落地页
-        </Button>
-      ),
     },
   ]
 
@@ -442,32 +402,6 @@ export const CampaignListPage: React.FC = () => {
           >
             <Input placeholder="例如：Q1-黑五-主推 A 方案" />
           </Form.Item>
-          <Form.Item label="投放渠道" name="channels">
-            <Select
-              mode="multiple"
-              placeholder="选择投放渠道（可多选）"
-              allowClear
-            >
-              {(channelDict ?? []).map((ch) => (
-                <Option key={ch.code} value={ch.code}>
-                  {ch.name}（{ch.code}）
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item label="投放地区" name="regions">
-            <Select
-              mode="multiple"
-              placeholder="选择投放地区（可多选）"
-              allowClear
-            >
-              {(regionDict ?? []).map((rg) => (
-                <Option key={rg.code} value={rg.code}>
-                  {rg.name}（{rg.code}）
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
         </Form>
       </Modal>
 
@@ -514,6 +448,7 @@ export const CampaignListPage: React.FC = () => {
           setBindingChannelId(undefined)
           setBindingTokenInfo(null)
           setBindingTokenAlert(null)
+          setSelectedLandingPageId(null)
         }}
         footer={null}
         width={720}
@@ -643,41 +578,82 @@ export const CampaignListPage: React.FC = () => {
               />
             )}
             <Title level={5} style={{ marginTop: 16 }}>
-              已关联工作流
+              关联落地页（单选）
             </Title>
-            <Table
-              rowKey="id"
-              size="small"
-              pagination={false}
-              columns={[
-                { title: 'ID', dataIndex: 'id', width: 80 },
-                { title: '批次名称', dataIndex: 'name', ellipsis: true },
-                {
-                  title: '状态',
-                  dataIndex: 'status',
-                  width: 120,
-                  render: (status: string) => {
-                    const s = (status || 'draft') as WorkflowStatus
-                    return (
-                      <Tag color={WORKFLOW_STATUS_COLOR[s]}>
-                        {WORKFLOW_STATUS_LABEL[s] ?? s}
-                      </Tag>
-                    )
+            <div className="campaign-detail-scroll-block">
+              <Table<CampaignLandingPageSource>
+                rowKey="id"
+                size="small"
+                pagination={false}
+                columns={landingSelectionColumns}
+                dataSource={detailData.landing_pages}
+                rowSelection={{
+                  type: 'radio',
+                  selectedRowKeys: selectedLandingPageId
+                    ? [selectedLandingPageId]
+                    : [],
+                  onChange: (keys) => {
+                    const key = keys[0]
+                    if (key === undefined || key === null) {
+                      setSelectedLandingPageId(null)
+                      return
+                    }
+                    setSelectedLandingPageId(typeof key === 'number' ? key : Number(key))
                   },
-                },
-              ]}
-              dataSource={detailData.workflows}
-            />
-            <Title level={5} style={{ marginTop: 16 }}>
-              可用落地页
-            </Title>
-            <Table<CampaignLandingPageSource>
-              rowKey="id"
-              size="small"
-              pagination={false}
-              columns={landingPageColumns}
-              dataSource={detailData.landing_pages}
-            />
+                }}
+              />
+            </div>
+            <div
+              style={{
+                marginTop: 8,
+                display: 'flex',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 8,
+              }}
+            >
+              <Text type="secondary">
+                投流计划同一时间只能绑定一个落地页，保存后可随时切换。
+              </Text>
+              <Button
+                type="primary"
+                onClick={handleSaveLandingPageBinding}
+                disabled={!selectedCampaign || !selectedLandingPageId}
+              >
+                保存关联落地页
+              </Button>
+            </div>
+            {selectedLandingPage ? (
+              <Card size="small" style={{ marginTop: 12 }}>
+                <Paragraph style={{ marginBottom: 4 }}>
+                  当前落地页：<Text strong>#{selectedLandingPage.id}</Text>
+                </Paragraph>
+                <Paragraph style={{ marginBottom: 4 }}>
+                  工作流 #{selectedLandingPage.workflow_id} ｜ 模板{' '}
+                  {selectedLandingPage.template_id}
+                </Paragraph>
+                <Paragraph style={{ marginBottom: 0 }}>
+                  语言：{selectedLandingPage.language}
+                </Paragraph>
+              </Card>
+            ) : (
+              <Alert
+                type="info"
+                showIcon
+                message="暂未选择落地页，请在上方表格中单选后保存。"
+                style={{ marginTop: 12 }}
+              />
+            )}
+            <Button
+              type="primary"
+              block
+              style={{ marginTop: 12 }}
+              onClick={handleGenerateSelectedLandingPage}
+              loading={generatingLandingPage}
+              disabled={!detailData?.channel_binding || !selectedLandingPageId}
+            >
+              使用当前落地页生成投放版
+            </Button>
             <Title level={5} style={{ marginTop: 16 }}>
               已生成投放落地页
             </Title>
@@ -750,55 +726,6 @@ export const CampaignListPage: React.FC = () => {
         )}
       </Modal>
 
-      <Modal
-        title={
-          selectedCampaign
-            ? `为「${selectedCampaign.name}」选择 ready 批次`
-            : '选择 ready 批次'
-        }
-        open={isSelectWorkflowModalOpen}
-        onCancel={() => setIsSelectWorkflowModalOpen(false)}
-        onOk={async () => {
-          if (!selectedCampaign) {
-            setIsSelectWorkflowModalOpen(false)
-            return
-          }
-          try {
-            await mapWorkflowsMutation.mutateAsync({
-              campaignId: selectedCampaign.id,
-              workflowIds: selectedWorkflowIds,
-            })
-            message.success('关联 ready 批次成功')
-            setIsSelectWorkflowModalOpen(false)
-            queryClient.invalidateQueries({ queryKey: ['campaigns'] })
-          } catch (error) {
-            const msg =
-              error instanceof Error
-                ? error.message
-                : '关联 ready 批次失败，请稍后重试'
-            message.error(msg)
-          }
-        }}
-        width={720}
-        okButtonProps={{ disabled: !selectedCampaign }}
-      >
-        <Table<Workflow>
-          rowKey="id"
-          loading={readyWorkflowsLoading}
-          columns={workflowColumns}
-          dataSource={
-            readyWorkflows?.items.filter(
-              (w) => w.status === 'ready' || w.status === 'in_use',
-            ) ?? []
-          }
-          pagination={false}
-          rowSelection={{
-            selectedRowKeys: selectedWorkflowIds,
-            onChange: (keys) => setSelectedWorkflowIds(keys as number[]),
-          }}
-          size="small"
-        />
-      </Modal>
     </Card>
   )
 }
