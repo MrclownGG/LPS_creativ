@@ -49,6 +49,36 @@ export interface CampaignWorkflowBrief {
   status: string
 }
 
+export interface CampaignChannelBinding {
+  channel_id: number
+  channel_name: string
+  channel_code: string
+  external_channel_id?: string
+  token?: string
+  updated_at?: string
+}
+
+export interface CampaignLandingPageSource {
+  id: number
+  workflow_id: number
+  template_id: number
+  generated_page_url: string
+  language: string
+}
+
+export interface CampaignDeployedLandingPage {
+  id: number
+  campaign_id: number
+  landing_page_id: number
+  workflow_id: number
+  template_id: number
+  page_url: string
+  package_url?: string
+  channel_id?: number
+  channel_external_id?: string
+  generated_at: string
+}
+
 export interface CampaignDetail {
   id: number
   name: string
@@ -58,6 +88,9 @@ export interface CampaignDetail {
   created_by: string
   created_at: string
   workflows: CampaignWorkflowBrief[]
+  channel_binding?: CampaignChannelBinding | null
+  landing_pages: CampaignLandingPageSource[]
+  deployed_pages: CampaignDeployedLandingPage[]
 }
 
 interface CampaignDetailResponse {
@@ -74,6 +107,18 @@ interface SimpleResponse {
   code: number
   message: string
   data: Record<string, unknown>
+}
+
+interface CampaignChannelBindingResponse {
+  code: number
+  message: string
+  data: CampaignChannelBinding | null
+}
+
+interface CampaignLandingPageDeployResponse {
+  code: number
+  message: string
+  data: CampaignDeployedLandingPage | null
 }
 
 export interface CampaignChannel {
@@ -214,3 +259,34 @@ export const useMapCampaignWorkflowsMutation = () =>
     mutationFn: (params: { campaignId: number; workflowIds: number[] }) =>
       mapCampaignWorkflows(params.campaignId, params.workflowIds),
   })
+
+export const bindCampaignChannel = async (
+  campaignId: number,
+  payload: { channel_id: number; token?: string; external_channel_id?: string },
+): Promise<CampaignChannelBinding> => {
+  const res = await apiClient.post<CampaignChannelBindingResponse>(
+    `/campaigns/${campaignId}/channel-binding`,
+    payload,
+  )
+
+  if (res.data.code !== 0 || !res.data.data) {
+    throw new Error(res.data.message || '绑定渠道失败')
+  }
+
+  return res.data.data
+}
+
+export const deployCampaignLandingPage = async (
+  campaignId: number,
+  landingPageId: number,
+): Promise<CampaignDeployedLandingPage> => {
+  const res = await apiClient.post<CampaignLandingPageDeployResponse>(
+    `/campaigns/${campaignId}/landing-pages/${landingPageId}/deploy`,
+  )
+
+  if (res.data.code !== 0 || !res.data.data) {
+    throw new Error(res.data.message || '生成投放落地页失败')
+  }
+
+  return res.data.data
+}

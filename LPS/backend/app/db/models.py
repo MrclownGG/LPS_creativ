@@ -289,12 +289,6 @@ class CampaignChannelDict(Base):
 
 
 class CampaignRegionDict(Base):
-    """
-    投放地区字典表 (`campaign_region_dict`)
-
-    用于维护可选的投放地区及其编码，campaign.regions 中存储的是 code。
-    """
-
     __tablename__ = "campaign_region_dict"
 
     id: Mapped[int] = mapped_column(
@@ -310,4 +304,43 @@ class CampaignRegionDict(Base):
     __table_args__ = (
         UniqueConstraint("code", name="uq_campaign_region_code"),
         Index("idx_campaign_region_status", "status"),
+    )
+
+    
+
+
+class CampaignLandingPage(Base):
+    __tablename__ = "campaign_landing_page"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    campaign_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("campaign.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    landing_page_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("landing_page.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    channel_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("campaign_channel_dict.id"),
+        nullable=True,
+    )
+    channel_external_id: Mapped[Optional[str]] = mapped_column(String(100))
+    channel_token: Mapped[Optional[str]] = mapped_column(Text)
+    page_url: Mapped[str] = mapped_column(Text, nullable=False)
+    package_url: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "campaign_id", "landing_page_id", name="uq_campaign_landing_page"
+        ),
+        Index("idx_clp_campaign", "campaign_id"),
     )

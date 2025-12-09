@@ -21,13 +21,6 @@ import dayjs, { type Dayjs } from 'dayjs'
 
 import { useVideos, type Video } from '../api/videos'
 import { useTemplates, type Template } from '../api/templates'
-import {
-  useChannels,
-  type Channel,
-  syncChannels,
-  fetchChannelToken,
-  type ChannelTokenData,
-} from '../api/channels'
 import { apiClient } from '../api/client'
 import {
   generateWorkflow,
@@ -49,24 +42,8 @@ export const WorkflowGeneratePage: React.FC = () => {
   const params = useParams<{ workflowId: string }>()
   const workflowId = Number(params.workflowId)
 
-  const {
-    data: channelData,
-    isLoading: channelsLoading,
-    isFetching: channelsFetching,
-  } = useChannels()
-  const channels = useMemo<Channel[]>(
-    () => channelData?.items ?? [],
-    [channelData],
-  )
-
   const [selectedVideoIds, setSelectedVideoIds] = useState<number[]>([])
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<number[]>([])
-  const [selectedChannelId, setSelectedChannelId] = useState<number>()
-  const [tokenInfo, setTokenInfo] = useState<ChannelTokenData | null>(null)
-  const [tokenAlert, setTokenAlert] = useState<{
-    status: 'success' | 'error'
-    message: string
-  } | null>(null)
 
   const [previewVisible, setPreviewVisible] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -78,11 +55,6 @@ export const WorkflowGeneratePage: React.FC = () => {
   )
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [viewSort, setViewSort] = useState<'none' | 'asc' | 'desc'>('none')
-  const selectedChannel = useMemo(
-    () => channels.find((c) => c.id === selectedChannelId),
-    [channels, selectedChannelId],
-  )
-  const isChannelListLoading = channelsLoading || channelsFetching
   const [language, setLanguage] = useState<LandingPageLanguage>('zh')
   const languageOptions: { label: string; value: LandingPageLanguage }[] = [
     { label: '中文', value: 'zh' },
@@ -111,41 +83,6 @@ export const WorkflowGeneratePage: React.FC = () => {
 
   const backendBaseUrl =
     apiClient.defaults.baseURL?.replace(/\/api\/?$/, '') ?? ''
-
-  const syncChannelsMutation = useMutation({
-    mutationFn: syncChannels,
-    onSuccess: () => {
-      message.success('渠道同步完成')
-      queryClient.invalidateQueries({ queryKey: ['channels'] })
-    },
-    onError: (error: unknown) => {
-      const msg =
-        error instanceof Error ? error.message : '同步渠道失败，请稍后重试'
-      message.error(msg)
-    },
-  })
-
-  const channelTokenMutation = useMutation({
-    mutationFn: (channelId: number) => fetchChannelToken(channelId),
-    onSuccess: (data) => {
-      setTokenInfo(data)
-      setTokenAlert({
-        status: 'success',
-        message: `已获取渠道 ${data.channel_code} 的 token`,
-      })
-      message.success('渠道 token 获取成功')
-    },
-    onError: (error: unknown) => {
-      const msg =
-        error instanceof Error ? error.message : '当前渠道的 token 不存在'
-      setTokenInfo(null)
-      setTokenAlert({
-        status: 'error',
-        message: msg,
-      })
-      message.error(msg)
-    },
-  })
 
   const createMutation = useMutation({
     mutationFn: (payload: WorkflowGenerateInput) =>
@@ -193,8 +130,7 @@ export const WorkflowGeneratePage: React.FC = () => {
   const canGenerate =
     workflowId > 0 &&
     selectedVideoIds.length > 0 &&
-    selectedTemplateIds.length > 0 &&
-    !!selectedChannelId
+    selectedTemplateIds.length > 0
 
   // 分类选项（从当前视频的 category 去重）
   const categoryOptions = useMemo(() => {
@@ -308,14 +244,6 @@ export const WorkflowGeneratePage: React.FC = () => {
       return false
     }
 
-    if (!selectedChannelId) {
-      modal.warning({
-        title: '无法生成落地页',
-        content: '请选择渠道，并根据需要查询 token 后再试。',
-      })
-      return false
-    }
-
     return true
   }
 
@@ -332,30 +260,8 @@ export const WorkflowGeneratePage: React.FC = () => {
     previewMutation.mutate({
       video_ids: selectedVideoIds,
       template_id: templateId,
-      channel_id: selectedChannelId as number,
       language,
     })
-  }
-
-  const handleChannelChange = (value?: number) => {
-    setSelectedChannelId(value)
-    setTokenInfo(null)
-    setTokenAlert(null)
-  }
-
-  const handleSyncChannels = () => {
-    syncChannelsMutation.mutate()
-  }
-
-  const handleFetchToken = () => {
-    if (!selectedChannelId) {
-      modal.warning({
-        title: '请先选择渠道',
-        content: '请选择渠道后再查询 token',
-      })
-      return
-    }
-    channelTokenMutation.mutate(selectedChannelId)
   }
 
   return (
@@ -590,113 +496,26 @@ export const WorkflowGeneratePage: React.FC = () => {
           />
         </div>
 
-        {/* Step 3：选择渠道并注入 token */}
         <div>
-          <Title level={5}>Step 3：选择渠道并注入 token</Title>
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 12 }}
-            message="请选择渠道后再生成或预览落地页，查询 token 后可确认注入信息是否正确。"
-          />
-          <Space
-            style={{ marginBottom: 12, flexWrap: 'wrap', width: '100%' }}
-            size={12}
+          <Title level={5}>Step 3：选择落地页语言</Title>
+          <Select<LandingPageLanguage>
+            value={language}
+            style={{ width: 220 }}
+            onChange={(val) => setLanguage(val as LandingPageLanguage)}
           >
-            <Select
-              showSearch
-              allowClear
-              placeholder={
-                channels.length === 0
-                  ? '暂无渠道，请先同步'
-                  : '请选择渠道'
-              }
-              optionFilterProp="children"
-              style={{ minWidth: 260 }}
-              value={selectedChannelId}
-              loading={isChannelListLoading}
-              onChange={(value: number | undefined) =>
-                handleChannelChange(value ?? undefined)
-              }
-            >
-              {channels.map((channel) => (
-                <Option key={channel.id} value={channel.id}>
-                  {channel.name}（ID：{channel.id}）
-                </Option>
-              ))}
-            </Select>
-            <Button
-              onClick={handleSyncChannels}
-              loading={syncChannelsMutation.isPending}
-            >
-              同步渠道
-            </Button>
-            <Button
-              type="primary"
-              ghost
-              disabled={!selectedChannelId}
-              loading={channelTokenMutation.isPending}
-              onClick={handleFetchToken}
-            >
-              查询 token
-            </Button>
-            <Select<LandingPageLanguage>
-              value={language}
-              style={{ width: 180 }}
-              onChange={(val) => setLanguage(val as LandingPageLanguage)}
-            >
-              {languageOptions.map((opt) => (
-                <Option key={opt.value} value={opt.value}>
-                  语言：{opt.label}
-                </Option>
-              ))}
-            </Select>
-          </Space>
-          {tokenAlert && (
-            <Alert
-              type={tokenAlert.status}
-              showIcon
-              message={tokenAlert.message}
-              style={{ marginBottom: 12 }}
-            />
-          )}
-          {tokenInfo && (
-            <Card
-              size="small"
-              style={{
-                background: '#fafafa',
-                borderStyle: 'dashed',
-                maxWidth: 640,
-              }}
-            >
-              <Paragraph style={{ marginBottom: 4 }}>
-                渠道 ID：<Text strong>{tokenInfo.channel_id}</Text>
-              </Paragraph>
-              {selectedChannel && (
-                <Paragraph style={{ marginBottom: 4 }}>
-                  渠道名称：<Text>{selectedChannel.name}</Text>
-                </Paragraph>
-              )}
-              {tokenInfo.external_channel_id && (
-                <Paragraph style={{ marginBottom: 4 }}>
-                  渠道 c_id：<Text>{tokenInfo.external_channel_id}</Text>
-                </Paragraph>
-              )}
-              <Paragraph style={{ marginBottom: 4 }}>
-                渠道编码：<Text>{tokenInfo.channel_code}</Text>
-              </Paragraph>
-              <Paragraph
-                copyable={{ text: tokenInfo.token }}
-                style={{ marginBottom: 0 }}
-              >
-                Token：
-                <Text code style={{ wordBreak: 'break-all' }}>
-                  {tokenInfo.token}
-                </Text>
-              </Paragraph>
-            </Card>
-          )}
+            {languageOptions.map((opt) => (
+              <Option key={opt.value} value={opt.value}>
+                {opt.label}
+              </Option>
+            ))}
+          </Select>
         </div>
+
+        <Alert
+          type="info"
+          showIcon
+          message="渠道绑定与 token 注入已移动到投放计划详情页，请生成落地页后在投放计划中选择渠道并注入 token。"
+        />
 
         {/* 操作区 */}
         <div>
@@ -705,14 +524,13 @@ export const WorkflowGeneratePage: React.FC = () => {
             disabled={!canGenerate}
             loading={createMutation.isPending}
             onClick={() => {
-              if (!validateSelection()) return
-              createMutation.mutate({
-                video_ids: selectedVideoIds,
-                template_ids: selectedTemplateIds,
-                channel_id: selectedChannelId as number,
-                language,
-              })
-            }}
+          if (!validateSelection()) return
+          createMutation.mutate({
+            video_ids: selectedVideoIds,
+            template_ids: selectedTemplateIds,
+            language,
+          })
+        }}
           >
             生成落地页
           </Button>

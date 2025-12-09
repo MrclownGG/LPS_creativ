@@ -105,14 +105,14 @@ interface WorkflowAdImageUploadResponse {
 export interface WorkflowGenerateInput {
   video_ids: number[]
   template_ids: number[]
-  channel_id: number
+  channel_id?: number
   language?: LandingPageLanguage
 }
 
 export interface WorkflowPreviewInput {
   video_ids: number[]
   template_id: number
-  channel_id: number
+  channel_id?: number
   language?: LandingPageLanguage
 }
 

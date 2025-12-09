@@ -13,7 +13,13 @@ This module provides:
     ``ready`` again (if it was ``in_use``).
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict
+
+from datetime import datetime
+from pathlib import Path
+import shutil
+import tempfile
+import zipfile
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -26,10 +32,112 @@ from app.db.models import (
     CampaignRegionDict,
     CampaignWorkflowMap,
     Workflow,
+    LandingPage,
+    CampaignLandingPage,
 )
 from app.db.session import get_db
+from app.api.workflows import (
+    _get_generated_root,
+    _inject_channel_tracking,
+    _remove_cn_comments,
+    _fetch_channel_tracking_for_workflow,
+)
 
 router = APIRouter(tags=["campaigns"])
+
+
+def _get_campaign_generated_root() -> Path:
+  root = _get_generated_root() / "campaigns"
+  root.mkdir(parents=True, exist_ok=True)
+  return root
+
+
+def _get_campaign_channel_binding_config(campaign: Campaign) -> Optional[dict]:
+  config = campaign.config or {}
+  binding = config.get("channel_binding")
+  if isinstance(binding, dict):
+    return binding
+  return None
+
+
+def _set_campaign_channel_binding_config(
+  campaign: Campaign,
+  binding: dict,
+) -> None:
+  config = dict(campaign.config or {})
+  config["channel_binding"] = binding
+  campaign.config = config
+
+
+def _inject_campaign_channel_values(
+  html_content: str,
+  external_channel_id: Optional[str],
+  token: Optional[str],
+) -> str:
+  html_content = _inject_channel_tracking(
+      html_content, external_channel_id, token
+  )
+  return _remove_cn_comments(html_content)
+
+
+def _campaign_online_html_path(
+  campaign_id: int,
+  landing_page_id: int,
+) -> Path:
+  target_dir = _get_campaign_generated_root() / str(campaign_id)
+  target_dir.mkdir(parents=True, exist_ok=True)
+  return target_dir / f"{landing_page_id}.html"
+
+
+def _campaign_package_base(campaign_id: int, landing_page_id: int) -> Path:
+  target_dir = _get_campaign_generated_root() / str(campaign_id)
+  target_dir.mkdir(parents=True, exist_ok=True)
+  return target_dir / f"{landing_page_id}"
+
+
+def _write_campaign_online_html(
+  source_html: Path,
+  dest_html: Path,
+  external_channel_id: Optional[str],
+  token: Optional[str],
+) -> None:
+  if not source_html.is_file():
+    raise FileNotFoundError(f"html source not found: {source_html}")
+  html_content = source_html.read_text(encoding="utf-8")
+  rendered = _inject_campaign_channel_values(
+      html_content, external_channel_id, token
+  )
+  dest_html.parent.mkdir(parents=True, exist_ok=True)
+  dest_html.write_text(rendered, encoding="utf-8")
+
+
+def _build_campaign_package_zip(
+  base_zip: Path,
+  target_base: Path,
+  external_channel_id: Optional[str],
+  token: Optional[str],
+) -> Optional[Path]:
+  if not base_zip.is_file():
+    return None
+
+  with tempfile.TemporaryDirectory() as tmpdir:
+    tmp_path = Path(tmpdir)
+    with zipfile.ZipFile(base_zip, "r") as zf:
+      zf.extractall(tmp_path)
+
+    for html_file in tmp_path.rglob("*.html"):
+      html_text = html_file.read_text(encoding="utf-8")
+      html_text = _inject_campaign_channel_values(
+          html_text, external_channel_id, token
+      )
+      html_file.write_text(html_text, encoding="utf-8")
+
+    archive_base = target_base
+    archive_path = archive_base.with_suffix(".zip")
+    if archive_path.exists():
+      archive_path.unlink()
+    shutil.make_archive(str(archive_base), "zip", root_dir=tmp_path)
+    return archive_path
 
 
 class CampaignItem(BaseModel):
@@ -86,6 +194,36 @@ class WorkflowBrief(BaseModel):
   status: str
 
 
+class CampaignChannelBindingItem(BaseModel):
+  channel_id: int
+  channel_name: str
+  channel_code: str
+  external_channel_id: Optional[str] = None
+  token: Optional[str] = None
+  updated_at: Optional[str] = None
+
+
+class CampaignLandingPageSource(BaseModel):
+  id: int
+  workflow_id: int
+  template_id: int
+  generated_page_url: str
+  language: str
+
+
+class CampaignDeployedLandingPageItem(BaseModel):
+  id: int
+  campaign_id: int
+  landing_page_id: int
+  workflow_id: int
+  template_id: int
+  page_url: str
+  package_url: Optional[str] = None
+  channel_id: Optional[int] = None
+  channel_external_id: Optional[str] = None
+  generated_at: str
+
+
 class CampaignDetailData(BaseModel):
   id: int
   name: str
@@ -95,6 +233,9 @@ class CampaignDetailData(BaseModel):
   created_by: str
   created_at: str
   workflows: List[WorkflowBrief]
+  channel_binding: Optional[CampaignChannelBindingItem] = None
+  landing_pages: List[CampaignLandingPageSource] = Field(default_factory=list)
+  deployed_pages: List[CampaignDeployedLandingPageItem] = Field(default_factory=list)
 
 
 class CampaignDetailResponse(BaseModel):
@@ -129,6 +270,28 @@ class CampaignChannelCreateRequest(BaseModel):
 class CampaignRegionCreateRequest(BaseModel):
   name: str = Field(..., description="Region name, e.g. '北美区'")
   code: str = Field(..., description="Region code, e.g. 'US' or 'US-CA'")
+
+
+class CampaignChannelBindingRequest(BaseModel):
+  channel_id: int = Field(..., description="campaign_channel_dict.id")
+  token: Optional[str] = Field(
+      default=None, description="渠道 token，如未提供将尝试自动获取"
+  )
+  external_channel_id: Optional[str] = Field(
+      default=None, description="渠道在外部系统的 c_id"
+  )
+
+
+class CampaignChannelBindingResponse(BaseModel):
+  code: int
+  message: str
+  data: Optional[CampaignChannelBindingItem] = None
+
+
+class CampaignLandingPageDeployResponse(BaseModel):
+  code: int
+  message: str
+  data: Optional[CampaignDeployedLandingPageItem] = None
 
 
 class CampaignWorkflowMapRequest(BaseModel):
@@ -274,6 +437,9 @@ def get_campaign_detail(
             created_by="",
             created_at="",
             workflows=[],
+            channel_binding=None,
+            landing_pages=[],
+            deployed_pages=[],
         ),
     )
 
@@ -295,6 +461,68 @@ def get_campaign_detail(
       )
       for wid, wname, wstatus in wf_rows
   ]
+  workflow_ids = [wid for wid, _, _ in wf_rows]
+
+  binding_cfg = _get_campaign_channel_binding_config(campaign)
+  binding_data: Optional[CampaignChannelBindingItem] = None
+
+  if binding_cfg and binding_cfg.get("channel_id"):
+    channel = db.get(CampaignChannelDict, binding_cfg["channel_id"])
+    if channel:
+      binding_data = CampaignChannelBindingItem(
+          channel_id=channel.id,
+          channel_name=channel.name,
+          channel_code=channel.code,
+          external_channel_id=binding_cfg.get("external_channel_id"),
+          token=binding_cfg.get("token"),
+          updated_at=binding_cfg.get("updated_at"),
+      )
+
+  landing_pages: List[CampaignLandingPageSource] = []
+  if workflow_ids:
+    lp_rows: List[LandingPage] = (
+        db.execute(
+            select(LandingPage)
+            .where(LandingPage.workflow_id.in_(workflow_ids))
+            .order_by(LandingPage.id.desc())
+        )
+        .scalars()
+        .all()
+    )
+    landing_pages = [
+        CampaignLandingPageSource(
+            id=lp.id,
+            workflow_id=lp.workflow_id,
+            template_id=lp.template_id,
+            generated_page_url=lp.generated_page_url,
+            language=lp.language,
+        )
+        for lp in lp_rows
+    ]
+
+  deployed_pages_rows = db.execute(
+      select(CampaignLandingPage, LandingPage)
+      .join(LandingPage, LandingPage.id == CampaignLandingPage.landing_page_id)
+      .where(CampaignLandingPage.campaign_id == campaign_id)
+      .order_by(CampaignLandingPage.created_at.desc())
+  ).all()
+
+  deployed_pages: List[CampaignDeployedLandingPageItem] = []
+  for clp, lp in deployed_pages_rows:
+    deployed_pages.append(
+        CampaignDeployedLandingPageItem(
+            id=clp.id,
+            campaign_id=clp.campaign_id,
+            landing_page_id=clp.landing_page_id,
+            workflow_id=lp.workflow_id if lp else 0,
+            template_id=lp.template_id if lp else 0,
+            page_url=clp.page_url,
+            package_url=clp.package_url,
+            channel_id=clp.channel_id,
+            channel_external_id=clp.channel_external_id,
+            generated_at=clp.created_at.isoformat() if clp.created_at else "",
+        )
+    )
 
   data = CampaignDetailData(
       id=campaign.id,
@@ -305,9 +533,75 @@ def get_campaign_detail(
       created_by=campaign.created_by,
       created_at=campaign.created_at.isoformat(),
       workflows=workflows,
+      channel_binding=binding_data,
+      landing_pages=landing_pages,
+      deployed_pages=deployed_pages,
   )
 
   return CampaignDetailResponse(code=0, message="ok", data=data)
+
+
+@router.post(
+  "/campaigns/{campaign_id}/channel-binding",
+  response_model=CampaignChannelBindingResponse,
+  summary="绑定投放计划使用的渠道",
+  description="为投放计划选择一个渠道并保存渠道 token 信息。",
+)
+def bind_campaign_channel(
+  campaign_id: int,
+  payload: CampaignChannelBindingRequest,
+  db: Session = Depends(get_db),
+) -> CampaignChannelBindingResponse:
+  campaign: Optional[Campaign] = db.get(Campaign, campaign_id)
+  if not campaign:
+    return CampaignChannelBindingResponse(
+        code=1,
+        message=f"campaign {campaign_id} not found",
+        data=None,
+    )
+
+  channel: Optional[CampaignChannelDict] = db.get(
+      CampaignChannelDict, payload.channel_id
+  )
+  if not channel:
+    return CampaignChannelBindingResponse(
+        code=1,
+        message=f"channel {payload.channel_id} not found",
+        data=None,
+    )
+
+  token = payload.token
+  external_id = payload.external_channel_id
+  if not token:
+    ext_id, fetched_token = _fetch_channel_tracking_for_workflow(channel)
+    external_id = external_id or ext_id
+    token = fetched_token or token
+
+  binding = {
+      "channel_id": channel.id,
+      "external_channel_id": external_id,
+      "token": token,
+      "updated_at": datetime.utcnow().isoformat(),
+  }
+  _set_campaign_channel_binding_config(campaign, binding)
+  db.add(campaign)
+  db.commit()
+  db.refresh(campaign)
+
+  binding_item = CampaignChannelBindingItem(
+      channel_id=channel.id,
+      channel_name=channel.name,
+      channel_code=channel.code,
+      external_channel_id=external_id,
+      token=token,
+      updated_at=binding["updated_at"],
+  )
+
+  return CampaignChannelBindingResponse(
+      code=0,
+      message="ok",
+      data=binding_item,
+  )
 
 
 @router.get(
@@ -422,6 +716,130 @@ def create_campaign_region(
   db.commit()
 
   return SimpleResponse(code=0, message="ok", data={"id": row.id})
+
+
+@router.post(
+  "/campaigns/{campaign_id}/landing-pages/{landing_page_id}/deploy",
+  response_model=CampaignLandingPageDeployResponse,
+  summary="根据投放计划的渠道生成最终落地页",
+  description="将指定落地页注入投放计划的渠道信息，并生成在线/离线版本。",
+)
+def deploy_campaign_landing_page(
+  campaign_id: int,
+  landing_page_id: int,
+  db: Session = Depends(get_db),
+) -> CampaignLandingPageDeployResponse:
+  campaign: Optional[Campaign] = db.get(Campaign, campaign_id)
+  if not campaign:
+    return CampaignLandingPageDeployResponse(
+        code=1,
+        message=f"campaign {campaign_id} not found",
+        data=None,
+    )
+
+  landing_page: Optional[LandingPage] = db.get(LandingPage, landing_page_id)
+  if not landing_page:
+    return CampaignLandingPageDeployResponse(
+        code=1,
+        message=f"landing page {landing_page_id} not found",
+        data=None,
+    )
+
+  binding = _get_campaign_channel_binding_config(campaign)
+  if not binding or not binding.get("channel_id"):
+    return CampaignLandingPageDeployResponse(
+        code=1,
+        message="请先在投放计划中绑定渠道后再生成落地页",
+        data=None,
+    )
+
+  relation_exists = db.execute(
+      select(CampaignWorkflowMap)
+      .where(CampaignWorkflowMap.campaign_id == campaign_id)
+      .where(CampaignWorkflowMap.workflow_id == landing_page.workflow_id)
+  ).first()
+  if not relation_exists:
+    return CampaignLandingPageDeployResponse(
+        code=1,
+        message="该落地页所属工作流尚未与当前投放计划关联",
+        data=None,
+    )
+
+  base_dir = _get_generated_root() / str(landing_page.workflow_id)
+  base_html = base_dir / f"{landing_page.id}.html"
+  if not base_html.is_file():
+    return CampaignLandingPageDeployResponse(
+        code=1,
+        message="落地页基础文件不存在，请先重新生成落地页",
+        data=None,
+    )
+
+  external_channel_id = binding.get("external_channel_id")
+  token = binding.get("token")
+  target_html = _campaign_online_html_path(campaign_id, landing_page_id)
+  _write_campaign_online_html(
+      base_html, target_html, external_channel_id, token
+  )
+
+  base_zip = base_dir / f"{landing_page.id}.zip"
+  package_base = _campaign_package_base(campaign_id, landing_page_id)
+  package_path = _build_campaign_package_zip(
+      base_zip, package_base, external_channel_id, token
+  )
+
+  page_url = f"/generated/campaigns/{campaign_id}/{landing_page_id}.html"
+  package_url = (
+      f"/generated/campaigns/{campaign_id}/{landing_page_id}.zip"
+      if package_path and package_path.exists()
+      else None
+  )
+
+  existing: Optional[CampaignLandingPage] = (
+      db.execute(
+          select(CampaignLandingPage).where(
+              CampaignLandingPage.campaign_id == campaign_id,
+              CampaignLandingPage.landing_page_id == landing_page_id,
+          )
+      )
+      .scalars()
+      .first()
+  )
+
+  if not existing:
+    existing = CampaignLandingPage(
+        campaign_id=campaign_id,
+        landing_page_id=landing_page_id,
+    )
+
+  existing.channel_id = binding.get("channel_id")
+  existing.channel_external_id = external_channel_id
+  existing.channel_token = token
+  existing.page_url = page_url
+  existing.package_url = package_url
+  db.add(existing)
+  db.commit()
+  db.refresh(existing)
+
+  response_item = CampaignDeployedLandingPageItem(
+      id=existing.id,
+      campaign_id=campaign_id,
+      landing_page_id=landing_page_id,
+      workflow_id=landing_page.workflow_id,
+      template_id=landing_page.template_id,
+      page_url=page_url,
+      package_url=package_url,
+      channel_id=existing.channel_id,
+      channel_external_id=external_channel_id,
+      generated_at=existing.created_at.isoformat()
+      if existing.created_at
+      else datetime.utcnow().isoformat(),
+  )
+
+  return CampaignLandingPageDeployResponse(
+      code=0,
+      message="ok",
+      data=response_item,
+  )
 
 
 @router.post(
@@ -541,4 +959,3 @@ def map_campaign_workflows(
       message="ok",
       data={"mapped_count": len(new_workflow_ids)},
   )
-

@@ -707,11 +707,11 @@ class WorkflowGenerateRequest(BaseModel):
 
   video_ids: List[int] = Field(..., min_items=1)
   template_ids: List[int] = Field(..., min_items=1)
-  channel_id: int = Field(
-    ...,
+  channel_id: Optional[int] = Field(
+    default=None,
     description=(
       "选中的渠道 ID（campaign_channel_dict.id），"
-      "一个落地页仅对应一个渠道"
+      "一个落地页仅对应一个渠道（可选）"
     ),
   )
   language: Optional[str] = Field(
@@ -738,11 +738,11 @@ class WorkflowPreviewRequest(BaseModel):
 
   video_ids: List[int] = Field(..., min_items=1)
   template_id: int
-  channel_id: int = Field(
-    ...,
+  channel_id: Optional[int] = Field(
+    default=None,
     description=(
       "预览时选中的渠道 ID（campaign_channel_dict.id），"
-      "一个落地页仅对应一个渠道"
+      "一个落地页仅对应一个渠道（可选）"
     ),
   )
   language: Optional[str] = Field(
@@ -1129,19 +1129,21 @@ def generate_landing_pages(
     )
 
   # 校验渠道是否存在（一个落地页仅对应一个渠道）
-  channel: Optional[CampaignChannelDict] = db.get(
-      CampaignChannelDict, payload.channel_id
-  )
-  if not channel:
-    return WorkflowGenerateResponse(
-        code=1,
-        message=f"channel {payload.channel_id} not found",
-        data=None,
-    )
+  channel: Optional[CampaignChannelDict] = None
+  channel_external_id: Optional[str] = None
+  channel_token: Optional[str] = None
 
-  channel_external_id, channel_token = _fetch_channel_tracking_for_workflow(
-      channel
-  )
+  if payload.channel_id is not None:
+    channel = db.get(CampaignChannelDict, payload.channel_id)
+    if not channel:
+      return WorkflowGenerateResponse(
+          code=1,
+          message=f"channel {payload.channel_id} not found",
+          data=None,
+      )
+    channel_external_id, channel_token = _fetch_channel_tracking_for_workflow(
+        channel
+    )
 
   landing_page_items: List[LandingPageItem] = []
   generated_root = _get_generated_root()
@@ -1216,9 +1218,10 @@ def generate_landing_pages(
     )
 
     base_html = _apply_language(base_html, payload.language, translations)
-    base_html = _inject_channel_tracking(
-        base_html, channel_external_id, channel_token
-    )
+    if channel_external_id or channel_token:
+      base_html = _inject_channel_tracking(
+          base_html, channel_external_id, channel_token
+      )
 
     # 在线版本：依旧引用 /templates/... 静态资源，供系统内预览使用
     static_prefix = _build_static_prefix(t.static_assets_path, templates_root)
@@ -1371,19 +1374,20 @@ def preview_landing_page(
         data=None,
     )
 
-  channel: Optional[CampaignChannelDict] = db.get(
-      CampaignChannelDict, payload.channel_id
-  )
-  if not channel:
-    return WorkflowPreviewResponse(
-        code=1,
-        message=f"channel {payload.channel_id} not found",
-        data=None,
+  channel: Optional[CampaignChannelDict] = None
+  channel_external_id: Optional[str] = None
+  channel_token: Optional[str] = None
+  if payload.channel_id is not None:
+    channel = db.get(CampaignChannelDict, payload.channel_id)
+    if not channel:
+      return WorkflowPreviewResponse(
+          code=1,
+          message=f"channel {payload.channel_id} not found",
+          data=None,
+      )
+    channel_external_id, channel_token = _fetch_channel_tracking_for_workflow(
+        channel
     )
-
-  channel_external_id, channel_token = _fetch_channel_tracking_for_workflow(
-      channel
-  )
 
   if len(payload.video_ids) < template.max_videos:
     return WorkflowPreviewResponse(
@@ -1453,9 +1457,10 @@ def preview_landing_page(
   html_content = _rewrite_static_urls(html_content, static_prefix)
 
   html_content = _apply_language(html_content, payload.language, translations)
-  html_content = _inject_channel_tracking(
-      html_content, channel_external_id, channel_token
-  )
+  if channel_external_id or channel_token:
+    html_content = _inject_channel_tracking(
+        html_content, channel_external_id, channel_token
+    )
 
   selected_payload = _build_selected_videos_payload(db, selected_ids)
   poster_urls_preview = [
