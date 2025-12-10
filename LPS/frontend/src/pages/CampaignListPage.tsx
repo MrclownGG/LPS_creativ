@@ -334,7 +334,7 @@ export const CampaignListPage: React.FC = () => {
     {
       title: '创建人',
       dataIndex: 'created_by',
-      width: 120,
+      width: 200,
       render: (_: unknown, record) => {
         const roleText = record.created_by_role
           ? ROLE_LABEL[record.created_by_role] || record.created_by_role
@@ -343,7 +343,14 @@ export const CampaignListPage: React.FC = () => {
           ? ROLE_COLOR[record.created_by_role as string] || 'blue'
           : undefined
         return (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              whiteSpace: 'nowrap',
+            }}
+          >
             <span>{record.created_by || '-'}</span>
             {roleText ? <Tag color={roleColor}>{roleText}</Tag> : null}
           </span>
