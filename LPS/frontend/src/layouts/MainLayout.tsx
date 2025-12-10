@@ -1,34 +1,24 @@
-import { Layout, Menu, Typography } from 'antd'
+import { Layout, Menu, Typography, Button } from 'antd'
 import type { MenuProps } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { clearAuthStorage, getStoredUser } from '../utils/auth'
 
 const { Header, Sider, Content } = Layout
-const { Title } = Typography
+const { Title, Text } = Typography
 
 type MenuItem = Required<MenuProps>['items'][number]
 
 const items: MenuItem[] = [
-  {
-    key: '/videos',
-    label: '影片素材库',
-  },
-  {
-    key: '/templates',
-    label: '模板管理',
-  },
-  {
-    key: '/workflows',
-    label: '落地页生成',
-  },
-  {
-    key: '/campaigns',
-    label: '投放计划',
-  },
+  { key: '/videos', label: '视频素材库' },
+  { key: '/templates', label: '模板管理' },
+  { key: '/workflows', label: '落地页生成' },
+  { key: '/campaigns', label: '投放计划' },
 ]
 
 export const MainLayout: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const currentUser = getStoredUser()
 
   const selectedKey =
     items.find((item) =>
@@ -37,6 +27,11 @@ export const MainLayout: React.FC = () => {
 
   const handleMenuClick: MenuProps['onClick'] = (info) => {
     navigate(info.key)
+  }
+
+  const handleLogout = () => {
+    clearAuthStorage()
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -74,6 +69,22 @@ export const MainLayout: React.FC = () => {
           <Title level={3} style={{ margin: 0 }}>
             FB 落地页生成系统
           </Title>
+          <div
+            style={{
+              marginLeft: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <Text>
+              {currentUser?.nickname || currentUser?.username || '未登录用户'}
+              {currentUser?.role ? ` · ${currentUser.role}` : ''}
+            </Text>
+            <Button type="link" onClick={handleLogout}>
+              退出
+            </Button>
+          </div>
         </Header>
         <Content style={{ padding: 24 }}>
           <Outlet />

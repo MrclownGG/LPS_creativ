@@ -5,6 +5,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ConfigProvider, App as AntdApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { MainLayout } from './layouts/MainLayout'
+import { RequireAuth } from './components/RequireAuth'
+import { LoginPage } from './pages/LoginPage'
 import { VideoListPage } from './pages/VideoListPage'
 import { TemplateListPage } from './pages/TemplateListPage'
 import { WorkflowListPage } from './pages/WorkflowListPage'
@@ -28,7 +30,15 @@ function App() {
         <AntdApp>
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<MainLayout />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/"
+                element={
+                  <RequireAuth>
+                    <MainLayout />
+                  </RequireAuth>
+                }
+              >
                 <Route index element={<Navigate to="/videos" replace />} />
                 <Route path="videos" element={<VideoListPage />} />
                 <Route path="templates" element={<TemplateListPage />} />
