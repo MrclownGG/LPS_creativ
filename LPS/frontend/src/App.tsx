@@ -8,6 +8,7 @@ import { MainLayout } from './layouts/MainLayout'
 import { RequireAuth } from './components/RequireAuth'
 import { RequireAdmin } from './components/RequireAdmin'
 import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
 import { VideoListPage } from './pages/VideoListPage'
 import { TemplateListPage } from './pages/TemplateListPage'
 import { WorkflowListPage } from './pages/WorkflowListPage'
@@ -33,6 +34,7 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               <Route
                 path="/"
                 element={

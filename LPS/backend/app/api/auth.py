@@ -32,6 +32,13 @@ class LoginRequest(BaseModel):
   password: str
 
 
+class RegisterRequest(BaseModel):
+  username: str
+  password: str
+  nickname: Optional[str] = None
+  role: Optional[str] = "operator"
+
+
 class LoginResponse(BaseModel):
   code: int
   message: str
@@ -112,6 +119,46 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse
     return LoginResponse(code=1, message="用户名或密码错误", data=None)
   if user.status != "active":
     return LoginResponse(code=1, message="账号已禁用", data=None)
+
+  token = create_access_token(user)
+  info = UserInfo(
+      id=user.id,
+      username=user.username,
+      nickname=user.nickname,
+      role=user.role,
+      status=user.status,
+  )
+  return LoginResponse(
+      code=0,
+      message="ok",
+      data={"access_token": token, "token_type": "bearer", "user": info.model_dump()},
+  )
+
+
+@router.post(
+  "/auth/register",
+  response_model=LoginResponse,
+  summary="用户注册（自助创建账号）",
+)
+def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> LoginResponse:
+  existed: Optional[User] = (
+      db.execute(select(User).where(User.username == payload.username))
+      .scalars()
+      .first()
+  )
+  if existed:
+    return LoginResponse(code=1, message="用户名已存在", data=None)
+
+  user = User(
+      username=payload.username,
+      password_hash=hash_password(payload.password),
+      nickname=payload.nickname,
+      role=payload.role or "operator",
+      status="active",
+  )
+  db.add(user)
+  db.commit()
+  db.refresh(user)
 
   token = create_access_token(user)
   info = UserInfo(

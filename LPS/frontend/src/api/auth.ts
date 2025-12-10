@@ -5,6 +5,13 @@ export interface LoginInput {
   password: string
 }
 
+export interface RegisterInput {
+  username: string
+  password: string
+  nickname?: string
+  role?: string
+}
+
 export interface AuthUser {
   id: number
   username: string
@@ -43,6 +50,16 @@ export const fetchCurrentUser = async (): Promise<AuthUser> => {
   const res = await apiClient.get<MeResponse>('/auth/me')
   if (res.data.code !== 0 || !res.data.data) {
     throw new Error(res.data.message || '获取用户信息失败')
+  }
+  return res.data.data
+}
+
+export const register = async (
+  payload: RegisterInput,
+): Promise<LoginResponseData> => {
+  const res = await apiClient.post<LoginResponse>('/auth/register', payload)
+  if (res.data.code !== 0 || !res.data.data) {
+    throw new Error(res.data.message || '注册失败')
   }
   return res.data.data
 }

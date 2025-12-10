@@ -43,6 +43,12 @@ const WORKFLOW_STATUS_COLOR: Record<WorkflowStatus, string> = {
   archived: 'default',
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  admin: '管理员',
+  operator: '投放人员',
+  designer: '美工',
+}
+
 export const WorkflowListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -92,9 +98,6 @@ export const WorkflowListPage: React.FC = () => {
 
   const handleCreate = () => {
     form.resetFields()
-    form.setFieldsValue({
-      created_by: 'designer_a', // 临时默认值，后续接入登录后可替换
-    })
     setIsModalOpen(true)
   }
 
@@ -105,7 +108,6 @@ export const WorkflowListPage: React.FC = () => {
   const handleFormFinish = (values: any) => {
     createMutation.mutate({
       name: values.name,
-      created_by: values.created_by || undefined,
     })
   }
 
@@ -150,6 +152,22 @@ export const WorkflowListPage: React.FC = () => {
       title: 'ID',
       dataIndex: 'id',
       width: 80,
+    },
+    {
+      title: '创建人',
+      dataIndex: 'created_by',
+      width: 160,
+      render: (_: unknown, record) => {
+        const roleText = record.created_by_role
+          ? ROLE_LABEL[record.created_by_role] || record.created_by_role
+          : ''
+        return (
+          <span>
+            {record.created_by || '-'}
+            {roleText ? `（${roleText}）` : ''}
+          </span>
+        )
+      },
     },
     {
       title: '批次名称',
@@ -213,7 +231,18 @@ export const WorkflowListPage: React.FC = () => {
     {
       title: '创建人',
       dataIndex: 'created_by',
-      width: 120,
+      width: 180,
+      render: (_: unknown, record) => {
+        const roleText = record.created_by_role
+          ? ROLE_LABEL[record.created_by_role] || record.created_by_role
+          : ''
+        return (
+          <span>
+            {record.created_by || '-'}
+            {roleText ? `（${roleText}）` : ''}
+          </span>
+        )
+      },
     },
     {
       title: '创建时间',
@@ -325,9 +354,6 @@ export const WorkflowListPage: React.FC = () => {
             rules={[{ required: true, message: '请输入批次名称' }]}
           >
             <Input placeholder="例如：1 月黑五活动 - 视频合集 A" />
-          </Form.Item>
-          <Form.Item label="创建人" name="created_by">
-            <Input placeholder="例如：designer_a，可留空使用默认" />
           </Form.Item>
         </Form>
       </Modal>

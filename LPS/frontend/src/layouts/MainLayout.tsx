@@ -1,4 +1,4 @@
-import { Layout, Menu, Typography, Button } from 'antd'
+import { Layout, Menu, Typography, Button, Tag } from 'antd'
 import type { MenuProps } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { clearAuthStorage, getStoredUser } from '../utils/auth'
@@ -12,6 +12,12 @@ export const MainLayout: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const currentUser = getStoredUser()
+
+  const roleLabel: Record<string, string> = {
+    admin: '管理员',
+    operator: '投放人员',
+    designer: '美工',
+  }
 
   const items: MenuItem[] = [
     { key: '/videos', label: '视频素材库' },
@@ -82,8 +88,12 @@ export const MainLayout: React.FC = () => {
           >
             <Text>
               {currentUser?.nickname || currentUser?.username || '未登录用户'}
-              {currentUser?.role ? ` · ${currentUser.role}` : ''}
             </Text>
+            {currentUser?.role && (
+              <Tag color="blue">
+                {roleLabel[currentUser.role] || currentUser.role}
+              </Tag>
+            )}
             <Button type="link" onClick={handleLogout}>
               退出
             </Button>

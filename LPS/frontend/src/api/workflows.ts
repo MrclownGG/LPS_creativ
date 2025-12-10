@@ -17,6 +17,7 @@ export interface Workflow {
   name: string
   status: WorkflowStatus
   created_by: string
+  created_by_role?: string
   created_at: string
   landing_page_count: number
   ad_image_count: number
@@ -71,6 +72,7 @@ export interface WorkflowDetailData {
   name: string
   status: WorkflowStatus
   created_by: string
+  created_by_role?: string
   created_at: string
   updated_at: string
   landing_pages: LandingPage[]

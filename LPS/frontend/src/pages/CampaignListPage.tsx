@@ -37,6 +37,12 @@ import {
 const { Title, Paragraph, Text } = Typography
 const { Option } = Select
 
+const ROLE_LABEL: Record<string, string> = {
+  admin: '管理员',
+  operator: '投放人员',
+  designer: '美工',
+}
+
 export const CampaignListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const { modal, message } = AntdApp.useApp()
@@ -323,6 +329,17 @@ export const CampaignListPage: React.FC = () => {
       title: '创建人',
       dataIndex: 'created_by',
       width: 120,
+      render: (_: unknown, record) => {
+        const roleText = record.created_by_role
+          ? ROLE_LABEL[record.created_by_role] || record.created_by_role
+          : ''
+        return (
+          <span>
+            {record.created_by || '-'}
+            {roleText ? `（${roleText}）` : ''}
+          </span>
+        )
+      },
     },
     {
       title: '创建时间',
@@ -476,7 +493,12 @@ export const CampaignListPage: React.FC = () => {
               <Tag color="blue">{detailData.status || 'active'}</Tag>
             </Typography.Paragraph>
             <Typography.Paragraph>
-              创建人：{detailData.created_by} ｜ 创建时间：
+              创建人：
+              {detailData.created_by}
+              {detailData.created_by_role
+                ? `（${ROLE_LABEL[detailData.created_by_role] || detailData.created_by_role}）`
+                : ''}{' '}
+              ｜ 创建时间：
               {detailData.created_at}
             </Typography.Paragraph>
             <Title level={5} style={{ marginTop: 16 }}>

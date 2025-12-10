@@ -31,9 +31,11 @@ from app.db.models import (
     Campaign,
     Video,
     CampaignChannelDict,
+    User,
 )
 from app.db.session import get_db
 from app.core.config import get_settings
+from app.api.auth import get_current_user
 
 router = APIRouter(tags=["workflows"])
 
@@ -644,7 +646,8 @@ class WorkflowItem(BaseModel):
   id: int
   name: str
   status: str
-  created_by: str
+  created_by: Optional[str] = ""
+  created_by_role: Optional[str] = ""
   created_at: str
   landing_page_count: int = 0
   ad_image_count: int = 0
@@ -670,7 +673,8 @@ class WorkflowDetailData(BaseModel):
   id: int
   name: str
   status: str
-  created_by: str
+  created_by: Optional[str] = ""
+  created_by_role: Optional[str] = ""
   created_at: str
   updated_at: str
   landing_pages: List[LandingPageItem]
@@ -688,7 +692,7 @@ class WorkflowDetailResponse(BaseModel):
 class WorkflowCreateRequest(BaseModel):
   name: str = Field(..., description="工作流批次名称")
   created_by: Optional[str] = Field(
-      default="system", description="创建者标识（用户名或工号）"
+      default=None, description="兼容旧字段，创建人将从登录用户获取"
   )
 
 
@@ -822,6 +826,13 @@ def list_workflows(
       .scalars()
       .all()
   )
+  creator_map: dict[int, User] = {}
+  creator_ids = [
+      w.created_by_id for w in workflows if getattr(w, "created_by_id", None)
+  ]
+  if creator_ids:
+    users = db.execute(select(User).where(User.id.in_(creator_ids))).scalars().all()
+    creator_map = {u.id: u for u in users}
 
   # 预先统计每个 workflow 的落地页数量
   if workflows:
@@ -907,7 +918,17 @@ def list_workflows(
           id=w.id,
           name=w.name,
           status=w.status,
-          created_by=w.created_by,
+          created_by=(
+              creator_map.get(w.created_by_id).nickname
+              or creator_map.get(w.created_by_id).username
+              if w.created_by_id and creator_map.get(w.created_by_id)
+              else ""
+          ),
+          created_by_role=(
+              creator_map.get(w.created_by_id).role
+              if w.created_by_id and creator_map.get(w.created_by_id)
+              else ""
+          ),
           created_at=w.created_at.isoformat(),
           landing_page_count=int(lp_counts.get(w.id, 0)),
           ad_image_count=int(ad_counts.get(w.id, 0)),
@@ -939,12 +960,13 @@ def list_workflows(
 )
 def create_workflow(
   payload: WorkflowCreateRequest,
+  current_user: User = Depends(get_current_user),
   db: Session = Depends(get_db),
 ) -> WorkflowCreateResponse:
   workflow = Workflow(
       name=payload.name,
       status="draft",
-      created_by=payload.created_by or "system",
+      created_by_id=current_user.id,
   )
   db.add(workflow)
   db.commit()
@@ -954,7 +976,8 @@ def create_workflow(
       id=workflow.id,
       name=workflow.name,
       status=workflow.status,
-      created_by=workflow.created_by,
+      created_by=current_user.nickname or current_user.username,
+      created_by_role=current_user.role,
       created_at=workflow.created_at.isoformat(),
       landing_page_count=0,
       ad_image_count=0,
@@ -1029,14 +1052,23 @@ def get_workflow_detail(
                 for item in selected_payload
             ],
             package_url=package_url,
-        )
+      )
     )
+
+  creator_name = ""
+  creator_role = ""
+  if getattr(workflow, "created_by_id", None):
+    creator = db.get(User, workflow.created_by_id)
+    if creator:
+      creator_name = creator.nickname or creator.username or ""
+      creator_role = creator.role or ""
 
   data = WorkflowDetailData(
       id=workflow.id,
       name=workflow.name,
       status=workflow.status,
-      created_by=workflow.created_by,
+      created_by=creator_name,
+      created_by_role=creator_role,
       created_at=workflow.created_at.isoformat(),
       updated_at=workflow.updated_at.isoformat(),
       landing_pages=lp_items,

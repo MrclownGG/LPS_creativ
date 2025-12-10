@@ -129,7 +129,9 @@ class Workflow(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False)
-    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_by_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now()
     )
@@ -138,7 +140,7 @@ class Workflow(Base):
     )
 
     __table_args__ = (
-        Index("idx_workflow_creator", "created_by"),
+        Index("idx_workflow_creator_id", "created_by_id"),
         Index("idx_workflow_status", "status"),
     )
 
@@ -258,13 +260,15 @@ class Campaign(Base):
     regions: Mapped[List[str]] = mapped_column(ARRAY(Text), nullable=False)
     launch_time: Mapped[Optional[DateTime]] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(20), default="active")
-    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_by_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("app_user.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now()
     )
     config: Mapped[dict] = mapped_column(JSONB, default=dict)
 
-    __table_args__ = (Index("idx_campaign_creator", "created_by"),)
+    __table_args__ = (Index("idx_campaign_creator_id", "created_by_id"),)
 
 
 class CampaignWorkflowMap(Base):

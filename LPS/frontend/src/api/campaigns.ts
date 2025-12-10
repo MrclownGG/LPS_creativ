@@ -9,6 +9,7 @@ export interface Campaign {
   regions: string[]
   status: string
   created_by: string
+  created_by_role?: string
   created_at: string
   workflow_count: number
   bound_channel_name?: string | null
@@ -86,6 +87,7 @@ export interface CampaignDetail {
   regions: string[]
   status: string
   created_by: string
+  created_by_role?: string
   created_at: string
   workflows: CampaignWorkflowBrief[]
   channel_binding?: CampaignChannelBinding | null

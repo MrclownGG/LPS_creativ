@@ -8,6 +8,7 @@ import {
   Input,
   Typography,
 } from 'antd'
+import { Link } from 'react-router-dom'
 import { login } from '../api/auth'
 import { clearAuthStorage, setStoredUser, setToken } from '../utils/auth'
 
@@ -80,6 +81,9 @@ export const LoginPage: React.FC = () => {
           >
             登录
           </Button>
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <Link to="/register">还没有账号？去注册</Link>
+          </div>
         </Form>
       </Card>
     </div>

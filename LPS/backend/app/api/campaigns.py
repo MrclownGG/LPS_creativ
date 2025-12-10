@@ -21,7 +21,7 @@ import shutil
 import tempfile
 import zipfile
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -34,6 +34,7 @@ from app.db.models import (
     Workflow,
     LandingPage,
     CampaignLandingPage,
+    User,
 )
 from app.db.session import get_db
 from app.api.workflows import (
@@ -42,6 +43,7 @@ from app.api.workflows import (
     _remove_cn_comments,
     _fetch_channel_tracking_for_workflow,
 )
+from app.api.auth import get_current_user
 
 router = APIRouter(tags=["campaigns"])
 
@@ -148,7 +150,8 @@ class CampaignItem(BaseModel):
   channels: List[str]
   regions: List[str]
   status: str
-  created_by: str
+  created_by: Optional[str] = ""
+  created_by_role: Optional[str] = ""
   created_at: str
   workflow_count: int = 0
   bound_channel_name: Optional[str] = None
@@ -169,8 +172,8 @@ class CampaignListResponse(BaseModel):
 class CampaignCreateRequest(BaseModel):
   name: str = Field(..., description="Campaign name")
   created_by: Optional[str] = Field(
-      default="system",
-      description="Creator identifier (username or employee id)",
+      default=None,
+      description="兼容旧字段，创建人将从登录用户获取",
   )
 
 
@@ -224,7 +227,8 @@ class CampaignDetailData(BaseModel):
   channels: List[str]
   regions: List[str]
   status: str
-  created_by: str
+  created_by: Optional[str] = ""
+  created_by_role: Optional[str] = ""
   created_at: str
   workflows: List[WorkflowBrief]
   channel_binding: Optional[CampaignChannelBindingItem] = None
@@ -344,6 +348,13 @@ def list_campaigns(
       .scalars()
       .all()
   )
+  creator_map: dict[int, User] = {}
+  creator_ids = [
+      c.created_by_id for c in campaigns if getattr(c, "created_by_id", None)
+  ]
+  if creator_ids:
+    users = db.execute(select(User).where(User.id.in_(creator_ids))).scalars().all()
+    creator_map = {u.id: u for u in users}
 
   if campaigns:
     ids = [c.id for c in campaigns]
@@ -391,7 +402,17 @@ def list_campaigns(
           channels=list(c.channels or []),
           regions=list(c.regions or []),
           status=c.status,
-          created_by=c.created_by,
+          created_by=(
+              creator_map.get(c.created_by_id).nickname
+              or creator_map.get(c.created_by_id).username
+              if c.created_by_id and creator_map.get(c.created_by_id)
+              else ""
+          ),
+          created_by_role=(
+              creator_map.get(c.created_by_id).role
+              if c.created_by_id and creator_map.get(c.created_by_id)
+              else ""
+          ),
           created_at=c.created_at.isoformat(),
           workflow_count=int(counts.get(c.id, 0)),
           bound_channel_name=(
@@ -419,6 +440,7 @@ def list_campaigns(
 )
 def create_campaign(
   payload: CampaignCreateRequest,
+  current_user: User = Depends(get_current_user),
   db: Session = Depends(get_db),
 ) -> CampaignCreateResponse:
   campaign = Campaign(
@@ -426,7 +448,7 @@ def create_campaign(
       channels=[],
       regions=[],
       status="active",
-      created_by=(payload.created_by or "system").strip() or "system",
+      created_by_id=current_user.id,
   )
 
   db.add(campaign)
@@ -439,7 +461,7 @@ def create_campaign(
       channels=list(campaign.channels or []),
       regions=list(campaign.regions or []),
       status=campaign.status,
-      created_by=campaign.created_by,
+      created_by=current_user.nickname or current_user.username,
       created_at=campaign.created_at.isoformat(),
       workflow_count=0,
       bound_channel_name=None,
@@ -572,13 +594,22 @@ def get_campaign_detail(
         )
     )
 
+  creator_name = ""
+  creator_role = ""
+  if getattr(campaign, "created_by_id", None):
+    creator = db.get(User, campaign.created_by_id)
+    if creator:
+      creator_name = creator.nickname or creator.username or ""
+      creator_role = creator.role or ""
+
   data = CampaignDetailData(
       id=campaign.id,
       name=campaign.name,
       channels=list(campaign.channels or []),
       regions=list(campaign.regions or []),
       status=campaign.status,
-      created_by=campaign.created_by,
+      created_by=creator_name,
+      created_by_role=creator_role,
       created_at=campaign.created_at.isoformat(),
       workflows=workflows,
       channel_binding=binding_data,
