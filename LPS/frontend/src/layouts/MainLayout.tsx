@@ -8,18 +8,20 @@ const { Title, Text } = Typography
 
 type MenuItem = Required<MenuProps>['items'][number]
 
-const items: MenuItem[] = [
-  { key: '/videos', label: '视频素材库' },
-  { key: '/templates', label: '模板管理' },
-  { key: '/workflows', label: '落地页生成' },
-  { key: '/campaigns', label: '投放计划' },
-  { key: '/users', label: '用户管理' },
-]
-
 export const MainLayout: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const currentUser = getStoredUser()
+
+  const items: MenuItem[] = [
+    { key: '/videos', label: '视频素材库' },
+    { key: '/templates', label: '模板管理' },
+    { key: '/workflows', label: '落地页生成' },
+    { key: '/campaigns', label: '投放计划' },
+    ...(currentUser?.role === 'admin'
+      ? [{ key: '/users', label: '用户管理' } as MenuItem]
+      : []),
+  ]
 
   const selectedKey =
     items.find((item) =>

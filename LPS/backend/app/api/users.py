@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from passlib.context import CryptContext
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import User
 from app.db.session import get_db
+from app.api.auth import get_current_user
 
 router = APIRouter(tags=["users"])
 
@@ -71,8 +72,13 @@ def list_users(
   page_size: int = 20,
   status: Optional[str] = None,
   role: Optional[str] = None,
+  current_user: User = Depends(get_current_user),
   db: Session = Depends(get_db),
 ) -> UserListResponse:
+  if current_user.role != "admin":
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, detail="admin only"
+    )
   query = select(User)
   if status:
     query = query.where(User.status == status)
@@ -100,8 +106,14 @@ def list_users(
 
 @router.post("/users", response_model=UserListResponse)
 def create_user(
-  payload: UserCreateRequest, db: Session = Depends(get_db)
+  payload: UserCreateRequest,
+  current_user: User = Depends(get_current_user),
+  db: Session = Depends(get_db),
 ) -> UserListResponse:
+  if current_user.role != "admin":
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, detail="admin only"
+    )
   exists = (
       db.execute(select(User).where(User.username == payload.username))
       .scalars()
@@ -129,8 +141,15 @@ def create_user(
 
 @router.patch("/users/{user_id}", response_model=UserListResponse)
 def update_user(
-  user_id: int, payload: UserUpdateRequest, db: Session = Depends(get_db)
+  user_id: int,
+  payload: UserUpdateRequest,
+  current_user: User = Depends(get_current_user),
+  db: Session = Depends(get_db),
 ) -> UserListResponse:
+  if current_user.role != "admin":
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, detail="admin only"
+    )
   user = db.get(User, user_id)
   if not user:
     return UserListResponse(code=1, message="用户不存在", data={})

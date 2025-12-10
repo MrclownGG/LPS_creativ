@@ -6,6 +6,7 @@ import { ConfigProvider, App as AntdApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { MainLayout } from './layouts/MainLayout'
 import { RequireAuth } from './components/RequireAuth'
+import { RequireAdmin } from './components/RequireAdmin'
 import { LoginPage } from './pages/LoginPage'
 import { VideoListPage } from './pages/VideoListPage'
 import { TemplateListPage } from './pages/TemplateListPage'
@@ -53,7 +54,14 @@ function App() {
                   element={<WorkflowDetailPage />}
                 />
                 <Route path="campaigns" element={<CampaignListPage />} />
-                <Route path="users" element={<UserListPage />} />
+                <Route
+                  path="users"
+                  element={
+                    <RequireAdmin>
+                      <UserListPage />
+                    </RequireAdmin>
+                  }
+                />
                 <Route path="*" element={<Navigate to="/videos" replace />} />
               </Route>
             </Routes>
