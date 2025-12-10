@@ -13,6 +13,7 @@ import { WorkflowListPage } from './pages/WorkflowListPage'
 import { WorkflowGeneratePage } from './pages/WorkflowGeneratePage'
 import { WorkflowDetailPage } from './pages/WorkflowDetailPage'
 import { CampaignListPage } from './pages/CampaignListPage'
+import { UserListPage } from './pages/UserListPage'
 
 const queryClient = new QueryClient()
 
@@ -52,6 +53,7 @@ function App() {
                   element={<WorkflowDetailPage />}
                 />
                 <Route path="campaigns" element={<CampaignListPage />} />
+                <Route path="users" element={<UserListPage />} />
                 <Route path="*" element={<Navigate to="/videos" replace />} />
               </Route>
             </Routes>

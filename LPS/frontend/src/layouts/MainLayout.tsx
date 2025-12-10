@@ -13,6 +13,7 @@ const items: MenuItem[] = [
   { key: '/templates', label: '模板管理' },
   { key: '/workflows', label: '落地页生成' },
   { key: '/campaigns', label: '投放计划' },
+  { key: '/users', label: '用户管理' },
 ]
 
 export const MainLayout: React.FC = () => {

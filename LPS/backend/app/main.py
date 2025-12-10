@@ -12,6 +12,7 @@ from .api.workflows import router as workflows_router
 from .api.campaigns import router as campaigns_router
 from .api.channels import router as channels_router
 from .api.auth import router as auth_router
+from .api.users import router as users_router
 
 
 def create_app() -> FastAPI:
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(workflows_router, prefix="/api")
     app.include_router(campaigns_router, prefix="/api")
     app.include_router(channels_router, prefix="/api")
+    app.include_router(users_router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
 
     # Static files: expose generated landing pages and template静态资源
