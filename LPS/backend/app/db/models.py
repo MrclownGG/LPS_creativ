@@ -26,6 +26,36 @@ from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
 
 
+class User(Base):
+    """
+    用户表 (`app_user`)
+
+    用于登录认证和角色控制。
+    """
+
+    __tablename__ = "app_user"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger, primary_key=True, autoincrement=True
+    )
+    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    nickname: Mapped[Optional[str]] = mapped_column(String(100))
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="operator")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_user_username", "username"),
+        Index("idx_user_status", "status"),
+    )
+
+
 class Video(Base):
     """
     视频素材库表 (`video`)

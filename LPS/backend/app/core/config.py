@@ -37,6 +37,11 @@ class Settings(BaseModel):
     # Separate API for channel token if needed
     external_token_api_url: Optional[AnyUrl] = None
 
+    # Auth / JWT
+    jwt_secret: str = "dev-secret"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 12 * 60  # 12 小时
+
 
 @functools.lru_cache(maxsize=1)
 def get_settings() -> Settings:
@@ -63,6 +68,11 @@ def get_settings() -> Settings:
             external_channel_api_token=os.getenv("EXTERNAL_CHANNEL_API_TOKEN")
             or None,
             external_token_api_url=os.getenv("EXTERNAL_TOKEN_API_URL") or None,
+            jwt_secret=os.getenv("JWT_SECRET", "dev-secret"),
+            jwt_algorithm=os.getenv("JWT_ALGORITHM", "HS256"),
+            access_token_expire_minutes=int(
+                os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 12 * 60)
+            ),
         )
     except KeyError as exc:
         missing = ", ".join([str(exc)])
