@@ -49,6 +49,12 @@ const ROLE_LABEL: Record<string, string> = {
   designer: '美工',
 }
 
+const ROLE_COLOR: Record<string, string> = {
+  admin: 'red',
+  operator: 'blue',
+  designer: 'green',
+}
+
 export const WorkflowListPage: React.FC = () => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -236,10 +242,13 @@ export const WorkflowListPage: React.FC = () => {
         const roleText = record.created_by_role
           ? ROLE_LABEL[record.created_by_role] || record.created_by_role
           : ''
+        const roleColor = roleText
+          ? ROLE_COLOR[record.created_by_role as string] || 'blue'
+          : undefined
         return (
-          <span>
-            {record.created_by || '-'}
-            {roleText ? `（${roleText}）` : ''}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span>{record.created_by || '-'}</span>
+            {roleText ? <Tag color={roleColor}>{roleText}</Tag> : null}
           </span>
         )
       },
