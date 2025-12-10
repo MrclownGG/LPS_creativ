@@ -1035,3 +1035,23 @@ def map_campaign_workflows(
       message="ok",
       data={"mapped_count": len(new_workflow_ids)},
   )
+
+
+@router.delete(
+  "/campaigns/{campaign_id}",
+  response_model=SimpleResponse,
+  summary="删除投放计划",
+  description="删除指定投放计划，级联清理关联关系（campaign_workflow_map、campaign_landing_page）。",
+)
+def delete_campaign(
+  campaign_id: int,
+  db: Session = Depends(get_db),
+) -> SimpleResponse:
+  campaign: Optional[Campaign] = db.get(Campaign, campaign_id)
+  if not campaign:
+    return SimpleResponse(code=1, message=f"campaign {campaign_id} not found", data={})
+
+  db.delete(campaign)
+  db.commit()
+
+  return SimpleResponse(code=0, message="ok", data={})

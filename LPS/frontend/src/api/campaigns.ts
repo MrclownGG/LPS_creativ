@@ -128,6 +128,12 @@ interface CampaignLandingPageBindingResponse {
   data: { landing_page_id: number } | Record<string, never>
 }
 
+interface CampaignDeleteResponse {
+  code: number
+  message: string
+  data: Record<string, unknown>
+}
+
 export interface CampaignChannel {
   id: number
   name: string
@@ -310,4 +316,13 @@ export const deployCampaignLandingPage = async (
   }
 
   return res.data.data
+}
+
+export const deleteCampaign = async (campaignId: number): Promise<void> => {
+  const res = await apiClient.delete<CampaignDeleteResponse>(
+    `/campaigns/${campaignId}`,
+  )
+  if (res.data.code !== 0) {
+    throw new Error(res.data.message || '删除投放计划失败')
+  }
 }

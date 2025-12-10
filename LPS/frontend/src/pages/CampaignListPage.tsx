@@ -14,7 +14,7 @@ import {
   App as AntdApp,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
 import {
   useCampaigns,
@@ -23,6 +23,7 @@ import {
   bindCampaignChannel,
   bindCampaignLandingPage,
   deployCampaignLandingPage,
+  deleteCampaign,
   type Campaign,
   type CampaignDetail,
   type CampaignLandingPageSource,
@@ -68,6 +69,7 @@ export const CampaignListPage: React.FC = () => {
   const [bindingLoading, setBindingLoading] = useState(false)
   const [tokenFetching, setTokenFetching] = useState(false)
   const [generatingLandingPage, setGeneratingLandingPage] = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const [form] = Form.useForm()
 
@@ -230,6 +232,20 @@ export const CampaignListPage: React.FC = () => {
     }
   }
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteCampaign(id),
+    onSuccess: () => {
+      message.success('投放计划已删除')
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
+    },
+    onError: (error: unknown) => {
+      const msg =
+        error instanceof Error ? error.message : '删除投放计划失败，请稍后重试'
+      message.error(msg)
+    },
+    onSettled: () => setDeletingId(null),
+  })
+
   const handleCreateFinish = (values: any) => {
     createMutation.mutate(
       { name: values.name },
@@ -316,7 +332,7 @@ export const CampaignListPage: React.FC = () => {
     {
       title: '操作',
       dataIndex: 'actions',
-      width: 160,
+      width: 240,
       render: (_, record) => (
         <>
           <Button
@@ -325,6 +341,30 @@ export const CampaignListPage: React.FC = () => {
             onClick={() => handleOpenDetailModal(record)}
           >
             查看详情
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            loading={deletingId === record.id && deleteMutation.isPending}
+            onClick={() => {
+              modal.confirm({
+                title: '确认删除该投放计划？',
+                content: '删除后将同时清理关联关系，已生成的投放落地页记录也会被移除。',
+                okText: '删除',
+                okType: 'danger',
+                onOk: async () => {
+                  setDeletingId(record.id)
+                  await deleteMutation.mutateAsync(record.id)
+                  if (selectedCampaign?.id === record.id) {
+                    setIsDetailModalOpen(false)
+                    setDetailData(null)
+                  }
+                },
+              })
+            }}
+          >
+            删除
           </Button>
         </>
       ),
